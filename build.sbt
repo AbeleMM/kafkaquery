@@ -69,9 +69,6 @@ lazy val dependencies =
     val flink              = "org.apache.flink"          %% "flink-scala"                    % flinkVersion      % Provided
     val flinkStreaming     = "org.apache.flink"          %% "flink-streaming-scala"          % flinkVersion      % Provided
     val flinkKafka         = "org.apache.flink"          %% "flink-connector-kafka"          % flinkVersion
-    val flinkRuntimeWeb    = "org.apache.flink"          %% "flink-runtime-web"              % flinkVersion      % Provided
-    val flinkElasticSearch = "org.apache.flink"          %% "flink-connector-elasticsearch6" % flinkVersion
-    val flinkRabbitMQ      = "org.apache.flink"          %% "flink-connector-rabbitmq"       % flinkVersion
 
     val redis              = "net.debasishg"             %% "redisclient"                    % "3.6"
     val kafkaClient        = "org.apache.kafka"           % "kafka-clients"                  % "2.4.0"
@@ -81,12 +78,6 @@ lazy val dependencies =
     val jackson            = "org.json4s"                %% "json4s-jackson"                 % json4sVersion
     val json4sExt          = "org.json4s"                %% "json4s-ext"                     % json4sVersion
 
-    val mongo              = "org.mongodb.scala"         %% "mongo-scala-driver"             % "2.3.0"
-
-    val httpj              = "org.scalaj"                %% "scalaj-http"                    % "2.4.0"
-
-    val kryoChill          = "com.twitter"               %% "chill"                          % "0.9.1"
-
     val scalactic          = "org.scalactic"             %% "scalactic"                      % "3.1.2"           % Test
     val scalatest          = "org.scalatest"             %% "scalatest"                      % "3.1.2"           % Test
     val scalamock          = "org.scalamock"             %% "scalamock"                      % "4.1.0"           % Test
@@ -94,8 +85,6 @@ lazy val dependencies =
     val embeddedRedis      = "com.github.sebruck"        %% "scalatest-embedded-redis"       % "0.3.0"           % Test
 
     val embeddedKafka      = "io.github.embeddedkafka"   %% "embedded-kafka"                 % "2.4.0"           % Test
-    val embeddedMongo      = "com.github.simplyscala"    %% "scalatest-embedmongo"           % "0.2.4"           % Test
-    //val embeddedRabbitMQ   = "io.arivera.oss"            %% "embedded-rabbitmq"              % "1.3.0"           % Test
 
     val avro               = "org.apache.avro"            % "avro"                           % "1.8.2"
     val avro4s             = "com.sksamuel.avro4s"       %% "avro4s-core"                    % "3.1.0"
@@ -107,8 +96,6 @@ lazy val dependencies =
     val flinkTestUtils     = "org.apache.flink"          %% "flink-test-utils"               % flinkVersion      % "test->test"
     val flinkRuntime       = "org.apache.flink"          %% "flink-runtime"                  % flinkVersion      % "test->test"
     val flinkStreamingJava = "org.apache.flink"          %% "flink-streaming-java"           % flinkVersion      % "test->test"
-
-    val spray              = "io.spray"                  %% "spray-json"                     % "1.3.4"
 
     val scopt              = "com.github.scopt"          %% "scopt"                          % "3.7.1"
   }
