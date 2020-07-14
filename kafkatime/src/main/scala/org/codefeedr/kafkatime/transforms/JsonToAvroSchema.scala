@@ -25,7 +25,9 @@ object JsonToAvroSchema {
                 name)
   }
 
-  private def inferSchema[T](node: JsonNode, schema: TypeBuilder[T], name: String): T =
+  private def inferSchema[T](node: JsonNode,
+                             schema: TypeBuilder[T],
+                             name: String): T =
     node.getNodeType match {
       case JsonNodeType.ARRAY =>
         val arraySchemas = collection.mutable.ListBuffer[Schema]()
