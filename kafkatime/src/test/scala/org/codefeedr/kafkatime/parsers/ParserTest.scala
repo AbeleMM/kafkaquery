@@ -144,38 +144,6 @@ class ParserTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
     }
   }
 
-  test("help test") {
-    Console.withOut(outStream) {
-
-      new Parser().showUsage()
-      val expectedString =
-        """Codefeedr CLI 1.0.0
-          |Usage: codefeedr [options]
-          |
-          |  -q, --query <query>      Allows querying available data sources through Flink SQL. query - valid Flink SQL query. More information about Flink SQL can be found at: https://ci.apache.org/projects/flink/flink-docs-release-1.9/dev/table/sql.html. Tables and their fields share the same names as those specified for the stage.
-          |  -p, --port <port>        Writes the output data of the given query to a socket which gets created with the specified port. Local connection with the host can be either done with netcat or by setting up your own socket client.
-          |  -k, --kafka-topic <kafka-topic>
-          |                           Writes the output data of the given query to the specified Kafka topic. If the Kafka topic does not exist, it will be created. The written query results can be seen by consuming from the Kafka topic.
-          |  -t, --timeout <seconds>  Specify a timeout in seconds. Query results will only be printed within this amount of time specified.
-          |  --from-earliest          Specify that the query output should be printed starting from the first retrievals.If no state is specified, then the query results will be printed from EARLIEST.
-          |  --from-latest            Specify that the query output should be printed starting from the latest retrievals.
-          |  --topic <topic_name>     Provide topic schema for given topic name. All data including the field names and field types should be present.
-          |  --topics                 List all topic names which have a schema stored in Zookeeper.
-          |  --schema-by-string:<topic_name>=<avro_Schema_String>
-          |                           Inserts the specified Avro Schema (as a String) into ZooKeeper for the specified topic
-          |  --schema:<topic_name>=<avro_Schema_file>
-          |                           Inserts the specified Avro Schema (contained in a file) into ZooKeeper for the specified topic
-          |  --kafka <kafka-address>  Sets the Kafka address.
-          |  --zookeeper <ZK-address>
-          |                           Sets the ZooKeeper address.
-          |  -h, --help""".stripMargin.trim
-
-      assertResult(expectedString) {
-        outStream.toString().trim
-      }
-    }
-  }
-
   test("checkConfigQuery") {
     val args: Seq[String] = Seq(
       "-q", "select * from topic"

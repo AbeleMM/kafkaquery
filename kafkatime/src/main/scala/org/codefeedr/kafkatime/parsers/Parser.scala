@@ -226,9 +226,8 @@ class Parser extends OptionParser[Config]("codefeedr") {
 
     kafkaConsumer.seekToEnd(List().asJava)
 
-    for (elem <- partitions) {
-      kafkaConsumer.seek(elem, kafkaConsumer.position(elem) - 1)
-    }
+    val latestPartAndPos = partitions.map(x => (x, kafkaConsumer.position(x))).maxBy(_._2)
+    kafkaConsumer.seek(latestPartAndPos._1, latestPartAndPos._2 - 1)
 
     val records = kafkaConsumer.poll(Duration.ofMillis(100))
 
