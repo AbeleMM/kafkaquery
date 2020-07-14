@@ -199,6 +199,11 @@ class Parser extends OptionParser[Config]("codefeedr") {
     zookeeperExposer = zk
   }
 
+  /**
+    * Executes the steps required for infering a schema.
+    * @param topicName name of the topic to be inferred
+    * @param kafkaAddress address of the kafka instance where the topic is present
+    */
   def inferSchema(topicName: String, kafkaAddress: String): Unit = {
     val record: String =
       JsonToAvroSchema.retrieveLatestRecordFromTopic(topicName, kafkaAddress)

@@ -13,13 +13,19 @@ import scala.collection.JavaConverters._
 
 object JsonToAvroSchema {
 
+  /**
+    * Infers an Avro schema from a given JSON object.
+    * @param json json data to infer schema from
+    * @param name name of the data source
+    * @return inferred Avro Schema
+    */
   def inferSchema(json: String, name: String): Schema = {
     inferSchema(new ObjectMapper().readTree(json),
                 SchemaBuilder.builder(),
                 name)
   }
 
-  def inferSchema[T](node: JsonNode, schema: TypeBuilder[T], name: String): T =
+  private def inferSchema[T](node: JsonNode, schema: TypeBuilder[T], name: String): T =
     node.getNodeType match {
       case JsonNodeType.ARRAY =>
         val arraySchemas = collection.mutable.ListBuffer[Schema]()
@@ -56,6 +62,12 @@ object JsonToAvroSchema {
       case _ => throw new IllegalArgumentException
     }
 
+  /**
+    * Gets the latest record from the specified topic.
+    * @param topicName name of the topic to fetch record from
+    * @param kafkaAddress address of Kafka instance
+    * @return string with the value of the last record
+    */
   def retrieveLatestRecordFromTopic(topicName: String,
                                     kafkaAddress: String): String = {
     val props = new Properties()
