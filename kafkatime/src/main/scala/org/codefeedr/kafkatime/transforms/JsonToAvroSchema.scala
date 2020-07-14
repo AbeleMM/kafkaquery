@@ -13,8 +13,10 @@ import scala.collection.JavaConverters._
 
 object JsonToAvroSchema {
 
-  def inferSchema(json: String, name: String) : Schema = {
-    inferSchema(new ObjectMapper().readTree(json), SchemaBuilder.builder(), name)
+  def inferSchema(json: String, name: String): Schema = {
+    inferSchema(new ObjectMapper().readTree(json),
+                SchemaBuilder.builder(),
+                name)
   }
 
   def inferSchema[T](node: JsonNode, schema: TypeBuilder[T], name: String): T =
@@ -39,8 +41,8 @@ object JsonToAvroSchema {
               .name(x.getKey)
               .`type`(
                 inferSchema(x.getValue,
-                  SchemaBuilder.builder(),
-                  x.getKey + "_type"))
+                            SchemaBuilder.builder(),
+                            x.getKey + "_type"))
               .noDefault())
         newSchema.endRecord()
 
@@ -54,14 +56,14 @@ object JsonToAvroSchema {
       case _ => throw new IllegalArgumentException
     }
 
-
-  def retrieveLatestRecordFromTopic(topicName : String, kafkaAddress : String) : String = {
+  def retrieveLatestRecordFromTopic(topicName: String,
+                                    kafkaAddress: String): String = {
     val props = new Properties()
     props.put("bootstrap.servers", kafkaAddress)
     props.put("key.deserializer",
-      "org.apache.kafka.common.serialization.StringDeserializer")
+              "org.apache.kafka.common.serialization.StringDeserializer")
     props.put("value.deserializer",
-      "org.apache.kafka.common.serialization.StringDeserializer")
+              "org.apache.kafka.common.serialization.StringDeserializer")
 
     val kafkaConsumer = new KafkaConsumer[String, String](props)
 
@@ -74,9 +76,9 @@ object JsonToAvroSchema {
 
     kafkaConsumer.seekToEnd(List().asJava)
 
-    for (elem <- partitions) {
-      kafkaConsumer.seek(elem, kafkaConsumer.position(elem) - 1)
-    }
+    val latestPartAndPos =
+      partitions.map(x => (x, kafkaConsumer.position(x))).maxBy(_._2)
+    kafkaConsumer.seek(latestPartAndPos._1, latestPartAndPos._2 - 1)
 
     val records = kafkaConsumer.poll(Duration.ofMillis(100))
 

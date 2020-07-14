@@ -57,7 +57,6 @@ lazy val utilSchemaExposure = (project in file("codefeedr-util/schema-exposure")
 lazy val dependencies =
   new {
     val flinkVersion       = "1.9.1"
-    val json4sVersion      = "3.6.4"
     val log4jVersion       = "2.11.0"
     val log4jScalaVersion  = "11.0"
 
@@ -73,10 +72,6 @@ lazy val dependencies =
     val redis              = "net.debasishg"             %% "redisclient"                    % "3.6"
     val kafkaClient        = "org.apache.kafka"           % "kafka-clients"                  % "2.4.0"
     val zookeeper          = "org.apache.zookeeper"       % "zookeeper"                      % "3.4.9"
-
-    val json4s             = "org.json4s"                %% "json4s-scalap"                  % json4sVersion
-    val jackson            = "org.json4s"                %% "json4s-jackson"                 % json4sVersion
-    val json4sExt          = "org.json4s"                %% "json4s-ext"                     % json4sVersion
 
     val scalactic          = "org.scalactic"             %% "scalactic"                      % "3.1.2"           % Test
     val scalatest          = "org.scalatest"             %% "scalatest"                      % "3.1.2"           % Test

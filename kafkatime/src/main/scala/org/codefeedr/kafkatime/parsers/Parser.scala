@@ -200,7 +200,8 @@ class Parser extends OptionParser[Config]("codefeedr") {
   }
 
   def inferSchema(topicName: String, kafkaAddress: String): Unit = {
-    val record : String = JsonToAvroSchema.retrieveLatestRecordFromTopic(topicName, kafkaAddress)
+    val record: String =
+      JsonToAvroSchema.retrieveLatestRecordFromTopic(topicName, kafkaAddress)
 
     val schema = JsonToAvroSchema.inferSchema(record, topicName)
 
