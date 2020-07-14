@@ -1,14 +1,23 @@
 package org.codefeedr.kafkatime.parsers
 
 import java.io.File
+import java.time.Duration
+import java.util.Properties
 
-import org.apache.avro.Schema
+import com.fasterxml.jackson.databind.node.JsonNodeType
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import org.apache.avro.SchemaBuilder.TypeBuilder
+import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.commons.io.FileUtils
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.common.TopicPartition
 import org.apache.zookeeper.KeeperException
 import org.codefeedr.kafkatime.commands.QueryCommand
 import org.codefeedr.kafkatime.parsers.Configurations.{Config, Mode}
 import org.codefeedr.util.schema_exposure.ZookeeperSchemaExposer
 import scopt.OptionParser
+
+import scala.collection.JavaConverters._
 
 class Parser extends OptionParser[Config]("codefeedr") {
 
@@ -86,6 +95,10 @@ class Parser extends OptionParser[Config]("codefeedr") {
                topicName = topicName)
     })
     .text("Inserts the specified Avro Schema (contained in a file) into ZooKeeper for the specified topic")
+  opt[String]("infer-schema")
+    .valueName("<topic-name>")
+    .action((x, c) => c.copy(mode = Mode.Infer, topicName = x))
+    .text("Infers and registers the Avro schema from the last record in the specified topic.")
   opt[String]("kafka")
     .valueName("<kafka-address>")
     .action((address, config) => config.copy(kafkaAddress = address))
@@ -100,11 +113,11 @@ class Parser extends OptionParser[Config]("codefeedr") {
   private var zookeeperExposer: ZookeeperSchemaExposer = _
 
   def parseConfig(args: Seq[String]): Option[Config] =
-    super.parse(args, Config());
+    super.parse(args, Config())
 
   def parse(args: Seq[String]): Unit = {
     parseConfig(args) match {
-      case Some(config) => {
+      case Some(config) =>
         initZookeeperExposer(config.zookeeperAddress)
         config.mode match {
           case Mode.Query  => new QueryCommand()(config)
@@ -112,10 +125,10 @@ class Parser extends OptionParser[Config]("codefeedr") {
           case Mode.Topics => printTopics()
           case Mode.Schema =>
             updateSchema(config.topicName, config.avroSchema)
+          case Mode.Infer => inferSchema(config.topicName, config.kafkaAddress)
           case _ =>
             Console.err.println("Command not recognized.")
         }
-      }
       case _ => Console.err.println("Unknown configuration.")
     }
   }
@@ -193,4 +206,76 @@ class Parser extends OptionParser[Config]("codefeedr") {
   def setSchemaExposer(zk: ZookeeperSchemaExposer): Unit = {
     zookeeperExposer = zk
   }
+
+  def inferSchema(topicName: String, kafkaAddress: String): Unit = {
+    val props = new Properties()
+    props.put("bootstrap.servers", kafkaAddress)
+    props.put("key.deserializer",
+              "org.apache.kafka.common.serialization.StringDeserializer")
+    props.put("value.deserializer",
+              "org.apache.kafka.common.serialization.StringDeserializer")
+
+    val kafkaConsumer = new KafkaConsumer[String, String](props)
+
+    val partitions = kafkaConsumer
+      .partitionsFor(topicName)
+      .asScala
+      .map(x => new TopicPartition(x.topic(), x.partition()))
+
+    kafkaConsumer.assign(partitions.asJava)
+
+    kafkaConsumer.seekToEnd(List().asJava)
+
+    for (elem <- partitions) {
+      kafkaConsumer.seek(elem, kafkaConsumer.position(elem) - 1)
+    }
+
+    val records = kafkaConsumer.poll(Duration.ofMillis(100))
+
+    val record: String = records.iterator().next().value()
+
+    val rootNode = new ObjectMapper().readTree(record)
+
+    val schema = inferSchema(rootNode, SchemaBuilder.builder(), topicName)
+
+    updateSchema(topicName, schema.toString)
+  }
+
+  def inferSchema[T](node: JsonNode, schema: TypeBuilder[T], name: String): T =
+    node.getNodeType match {
+      case JsonNodeType.ARRAY =>
+        val arraySchemas = collection.mutable.ListBuffer[Schema]()
+        node.forEach(
+          x =>
+            arraySchemas.append(
+              inferSchema(x, SchemaBuilder.builder(), name + "_type")))
+
+        if (arraySchemas.toSet.size != 1)
+          throw new IllegalArgumentException
+
+        schema.array().items(arraySchemas.head)
+
+      case JsonNodeType.OBJECT =>
+        val newSchema = schema.record(name).fields()
+        node.fields.forEachRemaining(
+          x =>
+            newSchema
+              .name(x.getKey)
+              .`type`(
+                inferSchema(x.getValue,
+                            SchemaBuilder.builder(),
+                            x.getKey + "_type"))
+              .noDefault())
+        newSchema.endRecord()
+
+      case JsonNodeType.BOOLEAN => schema.booleanType()
+
+      case JsonNodeType.STRING | JsonNodeType.BINARY => schema.stringType()
+
+      case JsonNodeType.NUMBER =>
+        if (node.isIntegralNumber) schema.longType() else schema.doubleType()
+
+      case _ => throw new IllegalArgumentException
+    }
+
 }
