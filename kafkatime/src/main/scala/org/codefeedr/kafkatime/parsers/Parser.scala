@@ -1,23 +1,15 @@
 package org.codefeedr.kafkatime.parsers
 
 import java.io.File
-import java.time.Duration
-import java.util.Properties
 
-import com.fasterxml.jackson.databind.node.JsonNodeType
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import org.apache.avro.SchemaBuilder.TypeBuilder
-import org.apache.avro.{Schema, SchemaBuilder}
+import org.apache.avro.Schema
 import org.apache.commons.io.FileUtils
-import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.common.TopicPartition
 import org.apache.zookeeper.KeeperException
 import org.codefeedr.kafkatime.commands.QueryCommand
 import org.codefeedr.kafkatime.parsers.Configurations.{Config, Mode}
+import org.codefeedr.kafkatime.transforms.JsonToAvroSchema
 import org.codefeedr.util.schema_exposure.ZookeeperSchemaExposer
 import scopt.OptionParser
-
-import scala.collection.JavaConverters._
 
 class Parser extends OptionParser[Config]("codefeedr") {
 
@@ -208,74 +200,11 @@ class Parser extends OptionParser[Config]("codefeedr") {
   }
 
   def inferSchema(topicName: String, kafkaAddress: String): Unit = {
-    val props = new Properties()
-    props.put("bootstrap.servers", kafkaAddress)
-    props.put("key.deserializer",
-              "org.apache.kafka.common.serialization.StringDeserializer")
-    props.put("value.deserializer",
-              "org.apache.kafka.common.serialization.StringDeserializer")
+    val record : String = JsonToAvroSchema.retrieveLatestRecordFromTopic(topicName, kafkaAddress)
 
-    val kafkaConsumer = new KafkaConsumer[String, String](props)
-
-    val partitions = kafkaConsumer
-      .partitionsFor(topicName)
-      .asScala
-      .map(x => new TopicPartition(x.topic(), x.partition()))
-
-    kafkaConsumer.assign(partitions.asJava)
-
-    kafkaConsumer.seekToEnd(List().asJava)
-
-    for (elem <- partitions) {
-      kafkaConsumer.seek(elem, kafkaConsumer.position(elem) - 1)
-    }
-
-    val records = kafkaConsumer.poll(Duration.ofMillis(100))
-
-    val record: String = records.iterator().next().value()
-
-    val rootNode = new ObjectMapper().readTree(record)
-
-    val schema = inferSchema(rootNode, SchemaBuilder.builder(), topicName)
+    val schema = JsonToAvroSchema.inferSchema(record, topicName)
 
     updateSchema(topicName, schema.toString)
   }
-
-  def inferSchema[T](node: JsonNode, schema: TypeBuilder[T], name: String): T =
-    node.getNodeType match {
-      case JsonNodeType.ARRAY =>
-        val arraySchemas = collection.mutable.ListBuffer[Schema]()
-        node.forEach(
-          x =>
-            arraySchemas.append(
-              inferSchema(x, SchemaBuilder.builder(), name + "_type")))
-
-        if (arraySchemas.toSet.size != 1)
-          throw new IllegalArgumentException
-
-        schema.array().items(arraySchemas.head)
-
-      case JsonNodeType.OBJECT =>
-        val newSchema = schema.record(name).fields()
-        node.fields.forEachRemaining(
-          x =>
-            newSchema
-              .name(x.getKey)
-              .`type`(
-                inferSchema(x.getValue,
-                            SchemaBuilder.builder(),
-                            x.getKey + "_type"))
-              .noDefault())
-        newSchema.endRecord()
-
-      case JsonNodeType.BOOLEAN => schema.booleanType()
-
-      case JsonNodeType.STRING | JsonNodeType.BINARY => schema.stringType()
-
-      case JsonNodeType.NUMBER =>
-        if (node.isIntegralNumber) schema.longType() else schema.doubleType()
-
-      case _ => throw new IllegalArgumentException
-    }
 
 }
