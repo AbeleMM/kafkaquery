@@ -132,4 +132,22 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  assertThrows[IllegalArgumentException] {
+    val jsonSample =
+      """
+         {
+         "badWeather" : [
+         1, "hello"
+         ]
+         }
+        """.stripMargin
+    val topicName = "myTopic"
+    JsonToAvroSchema.inferSchema(jsonSample, topicName).toString(true)
+  }
+
+  assertThrows[IllegalArgumentException] {
+    val jsonSample = ""
+    val topicName = "myTopic"
+    JsonToAvroSchema.inferSchema(jsonSample, topicName).toString(true)
+  }
 }
