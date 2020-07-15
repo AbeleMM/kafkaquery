@@ -26,7 +26,7 @@ object Configurations {
     */
   object Mode extends Enumeration {
     type Mode = Value
-    val Query, Topic, Topics, Schema = Value
+    val Query, Topic, Topics, Schema, Infer = Value
   }
 
   /**

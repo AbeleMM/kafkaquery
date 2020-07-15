@@ -7,6 +7,7 @@ import org.apache.commons.io.FileUtils
 import org.apache.zookeeper.KeeperException
 import org.codefeedr.kafkatime.commands.QueryCommand
 import org.codefeedr.kafkatime.parsers.Configurations.{Config, Mode}
+import org.codefeedr.kafkatime.transforms.JsonToAvroSchema
 import org.codefeedr.util.schema_exposure.ZookeeperSchemaExposer
 import scopt.OptionParser
 
@@ -86,6 +87,10 @@ class Parser extends OptionParser[Config]("codefeedr") {
                topicName = topicName)
     })
     .text("Inserts the specified Avro Schema (contained in a file) into ZooKeeper for the specified topic")
+  opt[String]("infer-schema")
+    .valueName("<topic-name>")
+    .action((x, c) => c.copy(mode = Mode.Infer, topicName = x))
+    .text("Infers and registers the Avro schema from the last record in the specified topic.")
   opt[String]("kafka")
     .valueName("<kafka-address>")
     .action((address, config) => config.copy(kafkaAddress = address))
@@ -100,11 +105,11 @@ class Parser extends OptionParser[Config]("codefeedr") {
   private var zookeeperExposer: ZookeeperSchemaExposer = _
 
   def parseConfig(args: Seq[String]): Option[Config] =
-    super.parse(args, Config());
+    super.parse(args, Config())
 
   def parse(args: Seq[String]): Unit = {
     parseConfig(args) match {
-      case Some(config) => {
+      case Some(config) =>
         initZookeeperExposer(config.zookeeperAddress)
         config.mode match {
           case Mode.Query  => new QueryCommand()(config)
@@ -112,10 +117,10 @@ class Parser extends OptionParser[Config]("codefeedr") {
           case Mode.Topics => printTopics()
           case Mode.Schema =>
             updateSchema(config.topicName, config.avroSchema)
+          case Mode.Infer => inferSchema(config.topicName, config.kafkaAddress)
           case _ =>
             Console.err.println("Command not recognized.")
         }
-      }
       case _ => Console.err.println("Unknown configuration.")
     }
   }
@@ -193,4 +198,19 @@ class Parser extends OptionParser[Config]("codefeedr") {
   def setSchemaExposer(zk: ZookeeperSchemaExposer): Unit = {
     zookeeperExposer = zk
   }
+
+  /**
+    * Executes the steps required for infering a schema.
+    * @param topicName name of the topic to be inferred
+    * @param kafkaAddress address of the kafka instance where the topic is present
+    */
+  def inferSchema(topicName: String, kafkaAddress: String): Unit = {
+    val record: String =
+      JsonToAvroSchema.retrieveLatestRecordFromTopic(topicName, kafkaAddress)
+
+    val schema = JsonToAvroSchema.inferSchema(record, topicName)
+
+    updateSchema(topicName, schema.toString)
+  }
+
 }
