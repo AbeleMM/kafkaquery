@@ -193,7 +193,7 @@ class Parser extends OptionParser[Config]("codefeedr") {
     }
   }
 
-  def getSchemaExposer(): ZookeeperSchemaExposer = zookeeperExposer
+  def getSchemaExposer: ZookeeperSchemaExposer = zookeeperExposer
 
   def setSchemaExposer(zk: ZookeeperSchemaExposer): Unit = {
     zookeeperExposer = zk

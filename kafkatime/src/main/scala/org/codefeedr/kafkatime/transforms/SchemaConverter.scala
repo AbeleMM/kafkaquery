@@ -40,7 +40,7 @@ object SchemaConverter {
             (name, Types.PRIMITIVE_ARRAY(nestedType))
           case Types.STRING =>
             (name, Types.LIST(nestedType))
-          case _ => {
+          case _ =>
             if (nestedType == Types.PRIMITIVE_ARRAY(Types.INT)
                 || nestedType == Types.PRIMITIVE_ARRAY(Types.BOOLEAN)
                 || nestedType == Types.PRIMITIVE_ARRAY(Types.BYTE)
@@ -56,7 +56,6 @@ object SchemaConverter {
             } else {
               (name, Types.OBJECT_ARRAY(nestedType))
             }
-          }
         }
       case org.apache.avro.Schema.Type.RECORD =>
         val temp = schema.getFields.asScala

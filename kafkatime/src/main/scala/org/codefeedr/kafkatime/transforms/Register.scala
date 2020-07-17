@@ -60,7 +60,6 @@ trait Register {
         connectEnvironmentToTopic(tableEnvironment,
                                   topicName,
                                   generatedSchema,
-                                  zookeeperAddress,
                                   kafkaAddress,
                                   kafka)
       }
@@ -78,21 +77,19 @@ trait Register {
     * @param tableEnv         the TableEnvironment to connect
     * @param topicName        the Kafka topic name
     * @param schema           the Schema of the data within the topic
-    * @param zookeeperAddress address of Zookeeper specified as an environment variable. (Default address: 'localhost:2181')
     * @param kafkaAddress     address of Kafka specified as an environment variable. (Default address: 'localhost:9092')
     * @param kafka            a Kafka object which stores the start time. ('StartFromEarliest' or 'StartFromLatest')
     */
   def connectEnvironmentToTopic(tableEnv: StreamTableEnvironment,
                                 topicName: String,
                                 schema: Schema,
-                                zookeeperAddress: String,
                                 kafkaAddress: String,
                                 kafka: Kafka): Unit = {
     tableEnv
       .connect(
         kafka
+          .version("universal")
           .topic(topicName)
-          .property("zookeeper.connect", zookeeperAddress)
           .property("bootstrap.servers", kafkaAddress)
       )
       .withFormat(

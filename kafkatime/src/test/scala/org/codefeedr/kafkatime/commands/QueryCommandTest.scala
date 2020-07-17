@@ -70,7 +70,6 @@ class QueryCommandTest extends AnyFunSuite with EmbeddedKafka with MockitoSugar 
       while (buffOut.toString.isEmpty && !reg.pattern.matcher(buffOut.toString).matches) {}
       port = reg.findFirstMatchIn(buffOut.toString).get.group(1).toInt
     }
-    System.out.println(port)
     val buffIn = new BufferedReader(new InputStreamReader(new Socket("localhost", port).getInputStream))
     val socketLines = new ListBuffer[String]
     while (socketLines.size < 3) socketLines += buffIn.readLine
@@ -129,7 +128,6 @@ class QueryCommandTest extends AnyFunSuite with EmbeddedKafka with MockitoSugar 
   test("kafkaWithState") {
     val queryCommand = new QueryCommand()
     val kafka = new Kafka()
-      .version("universal")
     val kafkaWithLatest = queryCommand.getKafkaWithState(checkLatest = true, kafka)
     assert(kafkaWithLatest.equals(kafka.startFromLatest()))
     val kafkaWithEarliest = queryCommand.getKafkaWithState(checkLatest = false, kafka)

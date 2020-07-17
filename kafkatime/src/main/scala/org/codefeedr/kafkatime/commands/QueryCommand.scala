@@ -30,9 +30,8 @@ class QueryCommand extends Register {
     */
   def apply(config: Config): Unit = {
 
-    val kafka: Kafka = getKafkaWithState(config.queryConfig.checkLatest,
-                                         new Kafka()
-                                           .version("universal"))
+    val kafka: Kafka =
+      getKafkaWithState(config.queryConfig.checkLatest, new Kafka())
     val tuple =
       registerAndApply(config.queryConfig.query,
                        config.zookeeperAddress,

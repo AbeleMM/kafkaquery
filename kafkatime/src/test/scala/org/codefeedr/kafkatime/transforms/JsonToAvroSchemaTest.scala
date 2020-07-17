@@ -3,8 +3,6 @@ package org.codefeedr.kafkatime.transforms
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
 
-import scala.tools.nsc.doc.base.comment.Table
-
 class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
 
 

@@ -1,4 +1,4 @@
-lazy val scala212 = "2.12.11"
+lazy val scala212 = "2.12.12"
 lazy val supportedScalaVersions = List(scala212)
 
 ThisBuild / scalaVersion := scala212
@@ -56,7 +56,7 @@ lazy val utilSchemaExposure = (project in file("codefeedr-util/schema-exposure")
 
 lazy val dependencies =
   new {
-    val flinkVersion       = "1.9.1"
+    val flinkVersion       = "1.9.3"
     val log4jVersion       = "2.11.0"
     val log4jScalaVersion  = "11.0"
 
