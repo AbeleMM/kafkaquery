@@ -5,7 +5,7 @@ import org.apache.flink.streaming.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.descriptors.{Json, Kafka, Rowtime, Schema}
 import org.apache.flink.types.Row
-import SchemaConverter.getNestedSchema
+import org.codefeedr.kafkatime.transforms.SchemaConverter.getNestedSchema
 import org.codefeedr.util.schema_exposure.ZookeeperSchemaExposer
 
 import scala.collection.JavaConverters._
