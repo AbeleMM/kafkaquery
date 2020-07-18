@@ -39,13 +39,14 @@ trait Register {
     val requestedTopics = extractTopics(query, supportedFormats)
 
     println("Requested: " + requestedTopics)
-    val executionEnvironment =
+
+    val fsEnv =
       StreamExecutionEnvironment.getExecutionEnvironment
 
-    executionEnvironment.setStreamTimeCharacteristic(
+    fsEnv.setStreamTimeCharacteristic(
       TimeCharacteristic.EventTime)
 
-    val tableEnvironment = StreamTableEnvironment.create(executionEnvironment)
+    val fsTableEnv = StreamTableEnvironment.create(fsEnv)
 
     rowtimeCounter = 0
     val fieldMapper = new ListBuffer[(String, String)]
@@ -57,7 +58,7 @@ trait Register {
         val generatedSchema =
           generateFlinkTableSchema(result.get, query, fieldMapper)
 
-        connectEnvironmentToTopic(tableEnvironment,
+        connectEnvironmentToTopic(fsTableEnv,
                                   topicName,
                                   generatedSchema,
                                   kafkaAddress,
@@ -67,8 +68,8 @@ trait Register {
 
     val queryMapped = mapFields(query, fieldMapper.toList)
 
-    (tableEnvironment.sqlQuery(queryMapped).toRetractStream[Row].map(_._2),
-     executionEnvironment)
+    (fsTableEnv.sqlQuery(queryMapped).toRetractStream[Row].map(_._2),
+     fsEnv)
   }
 
   /**
