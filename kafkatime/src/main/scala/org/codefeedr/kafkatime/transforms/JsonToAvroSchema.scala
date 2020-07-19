@@ -34,7 +34,7 @@ object JsonToAvroSchema {
         node.forEach(
           x =>
             arraySchemas.append(
-              inferSchema(x, SchemaBuilder.builder(), name + "_type")))
+              inferSchema(x, SchemaBuilder.builder(), validName(name) + "_type")))
 
         if (arraySchemas.toSet.size != 1)
           throw new IllegalArgumentException
@@ -42,16 +42,18 @@ object JsonToAvroSchema {
         schema.array().items(arraySchemas.head)
 
       case JsonNodeType.OBJECT =>
-        val newSchema = schema.record(name).fields()
+        val newSchema = schema.record(validName(name)).fields()
         node.fields.forEachRemaining(
-          x =>
+          x => {
+            val name = validName(x.getKey)
             newSchema
-              .name(x.getKey)
+              .name(name)
               .`type`(
                 inferSchema(x.getValue,
                             SchemaBuilder.builder(),
-                            x.getKey + "_type"))
-              .noDefault())
+                            name + "_type"))
+              .noDefault()
+          })
         newSchema.endRecord()
 
       case JsonNodeType.BOOLEAN => schema.booleanType()
@@ -97,5 +99,17 @@ object JsonToAvroSchema {
     val records = kafkaConsumer.poll(Duration.ofMillis(100))
 
     records.iterator().next().value()
+  }
+
+  /**
+    * Modified name to ensure it adheres to Avro requirements by replacing ilegal characters with '_'.
+    * @param name original name of the field
+    * @return valid name accepted by Avro
+    */
+  private def validName(name: String): String = {
+    val tempName = name.replaceAll("\\W", "_")
+    if (tempName.charAt(0).isLetter || tempName.charAt(0) == '_')
+      return tempName
+    '_' + tempName
   }
 }
