@@ -30,30 +30,36 @@ object JsonToAvroSchema {
                              name: String): T =
     node.getNodeType match {
       case JsonNodeType.ARRAY =>
-        val arraySchemas = collection.mutable.ListBuffer[Schema]()
-        node.forEach(
+        val it = node.iterator()
+
+        if (!it.hasNext)
+          throw new IllegalArgumentException(
+            "Could not infer schema of empty array.")
+
+        val arrayElemSchema = inferSchema(it.next(),
+                                          SchemaBuilder.builder(),
+                                          validName(name) + "_type")
+
+        it.forEachRemaining(
           x =>
-            arraySchemas.append(
-              inferSchema(x, SchemaBuilder.builder(), validName(name) + "_type")))
+            if (!arrayElemSchema.equals(inferSchema(x,
+                                                    SchemaBuilder.builder(),
+                                                    validName(name) + "_type")))
+              throw new IllegalArgumentException(
+                "Array contains elements of different types."))
 
-        if (arraySchemas.toSet.size != 1)
-          throw new IllegalArgumentException
-
-        schema.array().items(arraySchemas.head)
+        schema.array().items(arrayElemSchema)
 
       case JsonNodeType.OBJECT =>
         val newSchema = schema.record(validName(name)).fields()
-        node.fields.forEachRemaining(
-          x => {
-            val name = validName(x.getKey)
-            newSchema
-              .name(name)
-              .`type`(
-                inferSchema(x.getValue,
-                            SchemaBuilder.builder(),
-                            name + "_type"))
-              .noDefault()
-          })
+        node.fields.forEachRemaining(x => {
+          val name = validName(x.getKey)
+          newSchema
+            .name(name)
+            .`type`(
+              inferSchema(x.getValue, SchemaBuilder.builder(), name + "_type"))
+            .noDefault()
+        })
         newSchema.endRecord()
 
       case JsonNodeType.BOOLEAN => schema.booleanType()
@@ -63,7 +69,8 @@ object JsonToAvroSchema {
       case JsonNodeType.NUMBER =>
         if (node.isIntegralNumber) schema.longType() else schema.doubleType()
 
-      case _ => throw new IllegalArgumentException
+      case x =>
+        throw new IllegalArgumentException("Unrecognized data type: " + x)
     }
 
   /**
@@ -102,13 +109,15 @@ object JsonToAvroSchema {
   }
 
   /**
-    * Modified name to ensure it adheres to Avro requirements by replacing ilegal characters with '_'.
+    * Modified name to ensure it adheres to Avro requirements by replacing illegal characters with '_'.
     * @param name original name of the field
     * @return valid name accepted by Avro
     */
   private def validName(name: String): String = {
     val tempName = name.replaceAll("\\W", "_")
-    if (tempName.charAt(0).isLetter || tempName.charAt(0) == '_')
+    if (!name.isBlank && (tempName
+          .charAt(0)
+          .isLetter || tempName.charAt(0) == '_'))
       return tempName
     '_' + tempName
   }

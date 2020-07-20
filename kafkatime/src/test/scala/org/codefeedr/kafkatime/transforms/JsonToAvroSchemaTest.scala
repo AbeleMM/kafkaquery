@@ -1,153 +1,238 @@
 package org.codefeedr.kafkatime.transforms
 
+import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
-
-import scala.tools.nsc.doc.base.comment.Table
+import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor1, TableFor2}
 
 class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
 
-
   val testData: TableFor2[String, String] =
-    Table(("AvroSchema", "JsonSample"),
+    Table(
+      ("AvroSchema", "JsonSample"),
       (
-        """{
-  "type" : "record",
-  "name" : "myTopic",
-  "fields" : [ {
-    "name" : "title",
-    "type" : "string"
-  }, {
-    "name" : "link",
-    "type" : "string"
-  }, {
-    "name" : "description",
-    "type" : "string"
-  }, {
-    "name" : "pubDate",
-    "type" : "string"
-  } ]
-}""",
         """
-{
-    "title":"noted-notes 0.1.4",
-    "link":"Noted is a cli note taking and todo app similar to google keep or any other note taking service. It is a fork of my previous project keep-cli. Notes appear as cards. You can make lists and write random ideas.",
-    "description":"https://pypi.org/project/noted-notes/0.1.4/",
-    "pubDate":"2020-06-14T19:42:46.000Z"
- }
-                       """), (
-        """{
-  "type" : "record",
-  "name" : "myTopic",
-  "fields" : [ {
-    "name" : "colors",
-    "type" : {
-      "type" : "array",
-      "items" : {
-        "type" : "record",
-        "name" : "colors_type_type",
-        "fields" : [ {
-          "name" : "color",
-          "type" : "string"
-        }, {
-          "name" : "value",
-          "type" : "string"
-        } ]
-      }
-    }
-  } ]
-}""",
+          |{
+          |    "type":"record",
+          |    "name":"myTopic",
+          |    "fields":[
+          |        {
+          |            "name":"title",
+          |            "type":"string"
+          |        },
+          |        {
+          |            "name":"link",
+          |            "type":"string"
+          |        },
+          |        {
+          |            "name":"description",
+          |            "type":"string"
+          |        },
+          |        {
+          |            "name":"pubDate",
+          |            "type":"string"
+          |        }
+          |    ]
+          |}
+          |""".stripMargin,
         """
-{
-"colors" : [
-	{
-		"color": "red",
-		"value": "#f00"
-	},
-	{
-		"color": "magenta",
-		"value": "#f0f"
-	},
-	{
-		"color": "red",
-		"value": "#f00"
-	},
-	{
-		"color": "magenta",
-		"value": "#f0f"
-	}
-]
-}"""), (
-        """{
-          |  "type" : "record",
-          |  "name" : "myTopic",
-          |  "fields" : [ {
-          |    "name" : "id",
-          |    "type" : "long"
-          |  }, {
-          |    "name" : "age",
-          |    "type" : "long"
-          |  }, {
-          |    "name" : "bornyear",
-          |    "type" : "long"
-          |  }, {
-          |    "name" : "date",
-          |    "type" : "long"
-          |  }, {
-          |    "name" : "month",
-          |    "type" : "long"
-          |  }, {
-          |    "name" : "weight",
-          |    "type" : "double"
-          |  } ]
-          |}""".stripMargin,
-        """{
-      "id": 1,
-      "age": 56,
-      "bornyear": 1963,
-      "date": 3,
-      "month": 7,
-      "weight" : 67.5
-    }"""), (
-        """{
-          |  "type" : "record",
-          |  "name" : "myTopic",
-          |  "fields" : [ {
-          |    "name" : "id",
-          |    "type" : "boolean"
-          |  } ]
-          |}""".stripMargin,
-        """{
-      "id": true
-    }"""))
-
+          |{
+          |    "title":"noted-notes 0.1.4",
+          |    "link":"Noted is a cli note taking and todo app.",
+          |    "description":"https://pypi.org/project/noted-notes/0.1.4/",
+          |    "pubDate":"2020-06-14T19:42:46.000Z"
+          |}
+          |""".stripMargin
+      ),
+      (
+        """
+          |{
+          |    "type":"record",
+          |    "name":"myTopic",
+          |    "fields":[
+          |        {
+          |            "name":"colors",
+          |            "type":{
+          |                "type":"array",
+          |                "items":{
+          |                "type":"record",
+          |                "name":"colors_type_type",
+          |                "fields":[
+          |                    {
+          |                        "name":"color",
+          |                        "type":"string"
+          |                    },
+          |                    {
+          |                        "name":"value",
+          |                        "type":"string"
+          |                    }
+          |                ]
+          |                }
+          |            }
+          |        }
+          |    ]
+          |}
+          |""".stripMargin,
+        """
+          |{
+          |    "colors":[
+          |        {
+          |            "color":"red",
+          |            "value":"#f00"
+          |        },
+          |        {
+          |            "color":"magenta",
+          |            "value":"#f0f"
+          |        },
+          |        {
+          |            "color":"red",
+          |            "value":"#f00"
+          |        },
+          |        {
+          |            "color":"magenta",
+          |            "value":"#f0f"
+          |        }
+          |    ]
+          |}
+          |""".stripMargin
+      ),
+      (
+        """
+          |{
+          |    "type":"record",
+          |    "name":"myTopic",
+          |    "fields":[
+          |        {
+          |            "name":"id",
+          |            "type":"long"
+          |        },
+          |        {
+          |            "name":"age",
+          |            "type":"long"
+          |        },
+          |        {
+          |            "name":"year",
+          |            "type":"long"
+          |        },
+          |        {
+          |            "name":"day",
+          |            "type":"long"
+          |        },
+          |        {
+          |            "name":"month",
+          |            "type":"long"
+          |        },
+          |        {
+          |            "name":"weight",
+          |            "type":"double"
+          |        }
+          |    ]
+          |}
+          |""".stripMargin,
+        """
+          |{
+          |    "id":1,
+          |    "age":56,
+          |    "year":1963,
+          |    "day":3,
+          |    "month":7,
+          |    "weight":67.5
+          |}
+          |""".stripMargin
+      ),
+      (
+        """
+          |{
+          |    "type":"record",
+          |    "name":"myTopic",
+          |    "fields":[
+          |        {
+          |            "name":"id",
+          |            "type":"boolean"
+          |        }
+          |    ]
+          |}
+          |""".stripMargin,
+        """
+          |{
+          |    "id":true
+          |}
+          |""".stripMargin
+      ),
+      (
+        """
+          |{
+          |    "type":"record",
+          |    "name":"myTopic",
+          |    "fields":[
+          |        {
+          |            "name":"field_field_",
+          |            "type":"string"
+          |        },
+          |        {
+          |            "name":"_",
+          |            "type":"string"
+          |        },
+          |        {
+          |            "name":"_field",
+          |            "type":"string"
+          |        },
+          |        {
+          |            "name":"_0field",
+          |            "type":"string"
+          |        }
+          |    ]
+          |}
+          |""".stripMargin,
+        """
+          |{
+          |    "field.field/":"test1",
+          |    "":"test2",
+          |    "/field":"test3",
+          |    "0field":"test4"
+          |}
+          |""".stripMargin
+      )
+    )
 
   /**
     * Parameterized good weather tests for all supported types.
     */
   forAll(testData) { (avroSchema: String, jsonSample: String) =>
-    assertResult(avroSchema) {
+    assertResult(new Schema.Parser().parse(avroSchema)) {
       val topicName = "myTopic"
-      JsonToAvroSchema.inferSchema(jsonSample, topicName).toString(true)
+      JsonToAvroSchema.inferSchema(jsonSample, topicName)
     }
   }
 
-  assertThrows[IllegalArgumentException] {
-    val jsonSample =
+  val exceptionalTestData: TableFor1[String] =
+    Table(
+      "JsonSample",
       """
-         {
-         "badWeather" : [
-         1, "hello"
-         ]
-         }
-        """.stripMargin
-    val topicName = "myTopic"
-    JsonToAvroSchema.inferSchema(jsonSample, topicName).toString(true)
-  }
+        |{
+        |    "badWeather":[
+        |        1,
+        |        "hello"
+        |    ]
+        |}
+        |""".stripMargin,
+      """
+        |{
+        |    "badWeather":[
+        |
+        |    ]
+        |}
+        |""".stripMargin,
+      """
+        |""".stripMargin
+    )
 
-  assertThrows[IllegalArgumentException] {
-    val jsonSample = ""
-    val topicName = "myTopic"
-    JsonToAvroSchema.inferSchema(jsonSample, topicName).toString(true)
+  /**
+    * Parameterized bad weather tests.
+    */
+  forAll(exceptionalTestData) {jsonSample: String =>
+    assertThrows[IllegalArgumentException] {
+      val topicName = "myTopic"
+      JsonToAvroSchema.inferSchema(jsonSample, topicName)
+    }
   }
 }
