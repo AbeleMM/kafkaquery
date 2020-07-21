@@ -4,9 +4,9 @@ CodeFeedr KafkaQuery is a tool that allow to operate on JSON data in a Kafka ins
 
 ## Getting Started
 
-run ```sbt pack``` to create a package folder which includes program launch scripts ìn the following directory: ```kafkatime/target/pack/bin/kakfaquery```
+Run ```sbt pack``` to create a package folder which includes program launch scripts ìn the following directory: ```kafkatime/target/pack/bin/kakfaquery```
 
-add CodeFeedr to you path
+Add CodeFeedr to you path:
 ```
 export PATH=$PATH:<path to bin folder>
 
@@ -25,8 +25,11 @@ Specify Kafka and Zookeeper addresses either in your environment variables or as
 
 Execute the codefeedr script which can be found here ```kafkaquery/kafkatime/target/pack/bin```
 
+//TODO record a nice video
+![Some Text](https://gfycat.com/cheeryseparategoldeneye.gif)
 
 ##Commands
+
 
 | Command                                                            | Description                                                                                                                                                                             | Example                                                                                                                                                                                          |
 |--------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
