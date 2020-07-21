@@ -42,10 +42,8 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
       |      },
       |      {
       |         "name":"pubDate",
-      |         "type":{
-      |            "type":"string",
-      |            "isRowtime":true
-      |         }
+      |         "type":"string",
+      |         "rowtime":"true"
       |      }
       |   ]
       |}
@@ -65,10 +63,8 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
       |      },
       |      {
       |         "name":"retrieveDate",
-      |         "type":{
-      |            "type":"string",
-      |            "isRowtime":true
-      |         }
+      |         "type":"string",
+      |         "rowtime":"true"
       |      }
       |   ]
       |}
@@ -156,24 +152,21 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
   test("selectOperatorForPyPi") {
     // Remove one from the size of messages as to not count empty stop message.
     assert(runQuery("SELECT * FROM pypi_releases_min").size() == pypiMessages.size - 1)
-
   }
 
   test("tumbleWindowForPyPi") {
-    val res = runQuery("select count(*) from pypi_releases_min group by TUMBLE(pubDate, interval '1' second)", 5000)
-    assert(res.size() == 3)
-    assert(res.asScala.map(_.getField(0).asInstanceOf[Long]).sorted == List(1, 1, 2))
+    val res = runQuery("select count(*) from pypi_releases_min group by TUMBLE(pubDate_, interval '1' second)", 5000)
+    assert(res.asScala.map(_.getField(0).asInstanceOf[Long]).sorted == List(1, 1, 1, 2))
   }
 
   test("SelectHopForPyPi") {
-    val res = runQuery("select count(*) from pypi_releases_min group by HOP(pubDate, interval '2' second, interval '1' second)", 5000)
-    assert(res.size() == 2)
+    val res = runQuery("select count(*) from pypi_releases_min group by HOP(pubDate_, interval '2' second, interval '1' second)", 5000)
     assert(res.asScala.map(_.getField(0).asInstanceOf[Long]).sorted == List(1, 2))
   }
 
   test("selectTestPyPiGroup") {
-    val res: java.util.ArrayList[Row] = runQuery("select HOP_START(pubDate, interval '2' second, interval '1' second), count(*) " +
-      "from pypi_releases_min GROUP BY HOP(pubDate, interval '2' second, interval '1' second) HAVING count(*) > 1", 5000)
+    val res: java.util.ArrayList[Row] = runQuery("select HOP_START(pubDate_, interval '2' second, interval '1' second), count(*) " +
+      "from pypi_releases_min GROUP BY HOP(pubDate_, interval '2' second, interval '1' second) HAVING count(*) > 1", 5000)
     assert(res.size == 1)
     assert(res.asScala.map(_.getField(0).asInstanceOf[Timestamp]).toSet == Set(Timestamp.valueOf("2020-05-19 17:48:00.0")))
     assert(res.asScala.map(_.getField(1).asInstanceOf[Long]) == List(2))
@@ -196,13 +189,13 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
   }
 
   test("selectTestPyPiSubQueryInMultiRow") {
-    val res = runQuery("select title FROM pypi_releases_min where pubDate IN (SELECT retrieveDate FROM npm_releases_min WHERE retrieveDate" +
+    val res = runQuery("select title FROM pypi_releases_min where pubDate_ IN (SELECT retrieveDate_ FROM npm_releases_min WHERE retrieveDate_" +
       " BETWEEN '2020-05-19 17:48:00.0' AND '2020-05-19 17:48:05.0')", 5000)
     assert(res.size == 6)
   }
 
   test("extractTopicsSimple") {
-    val res = new QueryCommand().extractTopics("select count(*) from cargo group by TUMBLE(pubDate, interval '10' second)",
+    val res = new QueryCommand().extractTopics("select count(*) from cargo group by TUMBLE(pubDate_, interval '10' second)",
       List("pypi_releases_min", "cargo"))
     assert(res.toSet.equals(Set("cargo")))
   }
@@ -241,34 +234,6 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
     val res = new QueryCommand().extractTopics("SELECT tbltable1.one, tbltable1.two, tbltable2.three FROM pypi_release INNER JOIN tbltable7 ON tbltable1.one = tbltable2.three",
       List("pypi_release", "pypi_releases_min", "tbltable3"))
     assert(res.toSet.equals(Set("pypi_release")))
-  }
-
-  test("mapFieldsSimpleQuery") {
-    val res: String = new QueryCommand().mapFields("select pubDate from pypi", List(("pubDate", "rowtime0")))
-    assert(res === "select rowtime0 from pypi")
-  }
-
-  test("mapFieldsMultiple") {
-    val res: String = new QueryCommand().mapFields("select pubDate, pubDate from pypi", List(("pubDate", "rowtime0")))
-    assert(res === "select rowtime0, rowtime0 from pypi")
-  }
-
-  test("mapFieldsMultipleMappings") {
-    val res: String = new QueryCommand().mapFields("select pubDate from pypi where any_date='today'", List(("pubDate", "rowtime0"), ("any_date", "rowtime1")))
-    assert(res === "select rowtime0 from pypi where rowtime1='today'")
-  }
-
-  test("mapFieldsEmbeddedField") {
-    val res: String = new QueryCommand().mapFields("select count(*) from pypi_releases_min group by HOP(any_date, interval '1' day, interval '1' day)",
-      List(("any_date", "rowtime2")))
-    assert(res === "select count(*) from pypi_releases_min group by HOP(rowtime2, interval '1' day, interval '1' day)")
-  }
-
-  test("mapFieldsThrowException") {
-    assertThrows[IllegalArgumentException] {
-      new QueryCommand().mapFields("select count(*)from pypi_releases_min group by HOP(rowtime0, interval '1' rowtime0, interval '1' day)",
-        List(("pubDate", "rowtime0")))
-    }
   }
 
 }
