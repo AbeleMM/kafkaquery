@@ -28,7 +28,7 @@ Execute the codefeedr script which can be found here ```kafkaquery/kafkatime/tar
 //TODO record a nice video <br/>
 ![Some Text](https://media.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif)
 
-##Commands
+##Commands 
 
 
 | Command                                                            | Description                                                                                                                                                                             | Example                                                                                                                                                                                          |
