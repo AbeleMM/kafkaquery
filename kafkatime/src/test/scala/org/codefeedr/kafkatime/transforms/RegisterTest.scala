@@ -70,6 +70,25 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
       |}
       |""".stripMargin)
 
+  val testTableName: String = "test"
+  val testTableSchema: Schema = new Schema.Parser().parse(
+    """
+      |{
+      |   "type":"record",
+      |   "name":"Test",
+      |   "fields":[
+      |      {
+      |         "name":"field_a",
+      |         "type":"string"
+      |      },
+      |      {
+      |         "name":"field_b",
+      |         "type":"int"
+      |      }
+      |   ]
+      |}
+      |""".stripMargin)
+
   val pypiMessages: List[String] = List(
     """{ "title": "title1", "link": "link1", "description": "description1", "pubDate": "2020-05-19T17:48:00.000Z" }""",
     """{ "title": "title2", "link": "link2", "description": "description2", "pubDate": "2020-05-19T17:48:00.000Z" }""",
@@ -87,6 +106,16 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
     """{ "name": "title4", "retrieveDate": "2020-05-19T17:48:02.000Z" }""",
     """{ "name": "title5", "retrieveDate": "2020-05-19T17:48:03.000Z" }""",
     """{ "name": "title5", "retrieveDate": "2020-05-19T17:48:05.000Z" }""",
+    ""
+  )
+
+  val testMessages: List[String] = List(
+    """{ "field_a": "elem1", "field_b": 1 }""",
+    """{ "field_a": "elem2", "field_b": 2 }""",
+    """{ "field_a": "elem3", "field_b": 3 }""",
+    """{ "field_a": "elem4", "field_b": 4 }""",
+    """{ "field_a": "elem5", "field_b": 5 }""",
+    """{ "field_a": "elem6", "field_b": 6 }""",
     ""
   )
 
@@ -112,6 +141,7 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
       val zke = new ZookeeperSchemaExposer(s"localhost:${config.zooKeeperPort}")
       zke.put(pypiTableSchema, pypiTableName)
       zke.put(npmTableSchema, npmTableName)
+      zke.put(testTableSchema, testTableName)
 
       val stream = new QueryCommand().registerAndApply(query, s"localhost:${config.zooKeeperPort}", s"localhost:${config.kafkaPort}", new Kafka()
         .version("universal").startFromEarliest())
@@ -121,6 +151,7 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
         for (i <- 0 to 6) {
           publishStringMessageToKafka(pypiTableName, pypiMessages(i))
           publishStringMessageToKafka(npmTableName, npmMessages(i))
+          publishStringMessageToKafka(testTableName, testMessages(i))
         }
       } else {
         new Thread {
@@ -135,6 +166,7 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
               }
               publishStringMessageToKafka(pypiTableName, pypiMessages(i))
               publishStringMessageToKafka(npmTableName, npmMessages(i))
+              publishStringMessageToKafka(testTableName, testMessages(i))
             }
           }
         }.start()
@@ -191,6 +223,11 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
   test("selectTestPyPiSubQueryInMultiRow") {
     val res = runQuery("select title FROM pypi_releases_min where pubDate_ IN (SELECT retrieveDate_ FROM npm_releases_min WHERE retrieveDate_" +
       " BETWEEN '2020-05-19 17:48:00.0' AND '2020-05-19 17:48:05.0')", 5000)
+    assert(res.size == 6)
+  }
+
+  test("KafkaRowtimeTest") {
+    val res = runQuery("SELECT field_a, kafka_time FROM test")
     assert(res.size == 6)
   }
 
