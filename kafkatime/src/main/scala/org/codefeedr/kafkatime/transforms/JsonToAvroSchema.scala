@@ -50,7 +50,7 @@ object JsonToAvroSchema {
 
         schema.array().items(arrayElemSchema)
 
-      case JsonNodeType.OBJECT =>
+      case JsonNodeType.OBJECT | JsonNodeType.POJO =>
         val newSchema = schema.record(validName(name)).fields()
         node.fields.forEachRemaining(x => {
           val name = validName(x.getKey)
@@ -69,8 +69,7 @@ object JsonToAvroSchema {
       case JsonNodeType.NUMBER =>
         if (node.isIntegralNumber) schema.longType() else schema.doubleType()
 
-      case x =>
-        throw new IllegalArgumentException("Unrecognized data type: " + x)
+      case JsonNodeType.NULL | JsonNodeType.MISSING => schema.nullType()
     }
 
   /**

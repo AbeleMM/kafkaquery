@@ -64,6 +64,10 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
           |                    {
           |                        "name":"value",
           |                        "type":"string"
+          |                    },
+          |                    {
+          |                        "name":"other",
+          |                        "type":"null"
           |                    }
           |                ]
           |                }
@@ -77,19 +81,23 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
           |    "colors":[
           |        {
           |            "color":"red",
-          |            "value":"#f00"
+          |            "value":"#f00",
+          |            "other":null
           |        },
           |        {
           |            "color":"magenta",
-          |            "value":"#f0f"
+          |            "value":"#f0f",
+          |            "other":null
           |        },
           |        {
           |            "color":"red",
-          |            "value":"#f00"
+          |            "value":"#f00",
+          |            "other":null
           |        },
           |        {
           |            "color":"magenta",
-          |            "value":"#f0f"
+          |            "value":"#f0f",
+          |            "other":null
           |        }
           |    ]
           |}
@@ -221,8 +229,6 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
         |
         |    ]
         |}
-        |""".stripMargin,
-      """
         |""".stripMargin
     )
 
