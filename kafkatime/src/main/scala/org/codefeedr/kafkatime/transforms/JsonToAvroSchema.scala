@@ -27,7 +27,8 @@ object JsonToAvroSchema {
 
   private def inferSchema[T](node: JsonNode,
                              schema: TypeBuilder[T],
-                             name: String): T =
+                             name: String,
+                             namespace: String = "infer"): T =
     node.getNodeType match {
       case JsonNodeType.ARRAY =>
         val it = node.iterator()
@@ -36,28 +37,34 @@ object JsonToAvroSchema {
           throw new IllegalArgumentException(
             "Could not infer schema of empty array.")
 
+        val nodeName = validName(name)
+
         val arrayElemSchema = inferSchema(it.next(),
                                           SchemaBuilder.builder(),
-                                          validName(name) + "_type")
+                                          nodeName,
+                                          namespace)
 
         it.forEachRemaining(
           x =>
             if (!arrayElemSchema.equals(inferSchema(x,
                                                     SchemaBuilder.builder(),
-                                                    validName(name) + "_type")))
+                                                    nodeName,
+                                                    namespace)))
               throw new IllegalArgumentException(
                 "Array contains elements of different types."))
 
         schema.array().items(arrayElemSchema)
 
       case JsonNodeType.OBJECT | JsonNodeType.POJO =>
-        val newSchema = schema.record(validName(name)).fields()
+        val nodeName = validName(name)
+
+        val newSchema = schema.record(nodeName).namespace(namespace).fields()
         node.fields.forEachRemaining(x => {
-          val name = validName(x.getKey)
+          val fieldName = validName(x.getKey)
           newSchema
-            .name(name)
+            .name(fieldName)
             .`type`(
-              inferSchema(x.getValue, SchemaBuilder.builder(), name + "_type"))
+              inferSchema(x.getValue, SchemaBuilder.builder(), fieldName, namespace + '.' + nodeName))
             .noDefault()
         })
         newSchema.endRecord()

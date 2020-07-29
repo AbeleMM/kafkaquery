@@ -6,14 +6,17 @@ import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor1, TableFor2}
 
 class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
 
+  val topicName = "myTopic"
+
   val testData: TableFor2[String, String] =
     Table(
       ("AvroSchema", "JsonSample"),
       (
-        """
+        s"""
           |{
           |    "type":"record",
-          |    "name":"myTopic",
+          |    "name":"$topicName",
+          |    "namespace":"infer",
           |    "fields":[
           |        {
           |            "name":"title",
@@ -44,10 +47,11 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
           |""".stripMargin
       ),
       (
-        """
+        s"""
           |{
           |    "type":"record",
-          |    "name":"myTopic",
+          |    "name":"$topicName",
+          |    "namespace":"infer",
           |    "fields":[
           |        {
           |            "name":"colors",
@@ -55,7 +59,8 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
           |                "type":"array",
           |                "items":{
           |                "type":"record",
-          |                "name":"colors_type_type",
+          |                "name":"colors",
+          |                "namespace":"infer.$topicName",
           |                "fields":[
           |                    {
           |                        "name":"color",
@@ -104,10 +109,11 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
           |""".stripMargin
       ),
       (
-        """
+        s"""
           |{
           |    "type":"record",
-          |    "name":"myTopic",
+          |    "name":"$topicName",
+          |    "namespace":"infer",
           |    "fields":[
           |        {
           |            "name":"id",
@@ -148,10 +154,11 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
           |""".stripMargin
       ),
       (
-        """
+        s"""
           |{
           |    "type":"record",
-          |    "name":"myTopic",
+          |    "name":"$topicName",
+          |    "namespace":"infer",
           |    "fields":[
           |        {
           |            "name":"id",
@@ -167,10 +174,11 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
           |""".stripMargin
       ),
       (
-        """
+        s"""
           |{
           |    "type":"record",
-          |    "name":"myTopic",
+          |    "name":"$topicName",
+          |    "namespace":"infer",
           |    "fields":[
           |        {
           |            "name":"field_field_",
@@ -207,7 +215,6 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
     */
   forAll(testData) { (avroSchema: String, jsonSample: String) =>
     assertResult(new Schema.Parser().parse(avroSchema)) {
-      val topicName = "myTopic"
       JsonToAvroSchema.inferSchema(jsonSample, topicName)
     }
   }
@@ -237,7 +244,6 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
     */
   forAll(exceptionalTestData) {jsonSample: String =>
     assertThrows[IllegalArgumentException] {
-      val topicName = "myTopic"
       JsonToAvroSchema.inferSchema(jsonSample, topicName)
     }
   }
