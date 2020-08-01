@@ -39,17 +39,13 @@ object JsonToAvroSchema {
 
         val nodeName = validName(name)
 
-        val arrayElemSchema = inferSchema(it.next(),
-                                          SchemaBuilder.builder(),
-                                          nodeName,
-                                          namespace)
+        val arrayElemSchema =
+          inferSchema(it.next(), SchemaBuilder.builder(), nodeName, namespace)
 
         it.forEachRemaining(
           x =>
-            if (!arrayElemSchema.equals(inferSchema(x,
-                                                    SchemaBuilder.builder(),
-                                                    nodeName,
-                                                    namespace)))
+            if (!arrayElemSchema.equals(
+                  inferSchema(x, SchemaBuilder.builder(), nodeName, namespace)))
               throw new IllegalArgumentException(
                 "Array contains elements of different types."))
 
@@ -64,7 +60,10 @@ object JsonToAvroSchema {
           newSchema
             .name(fieldName)
             .`type`(
-              inferSchema(x.getValue, SchemaBuilder.builder(), fieldName, namespace + '.' + nodeName))
+              inferSchema(x.getValue,
+                          SchemaBuilder.builder(),
+                          fieldName,
+                          namespace + '.' + nodeName))
             .noDefault()
         })
         newSchema.endRecord()
@@ -121,9 +120,8 @@ object JsonToAvroSchema {
     */
   private def validName(name: String): String = {
     val tempName = name.replaceAll("\\W", "_")
-    if (!name.isBlank && (tempName
-          .charAt(0)
-          .isLetter || tempName.charAt(0) == '_'))
+    if (!name.isBlank &&
+        (tempName.charAt(0).isLetter || tempName.charAt(0) == '_'))
       return tempName
     '_' + tempName
   }
