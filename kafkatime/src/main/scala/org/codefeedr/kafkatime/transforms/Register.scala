@@ -104,7 +104,7 @@ trait Register {
     */
   def extractTopics(query: String,
                     supportedPlugins: List[String]): List[String] = {
-    supportedPlugins.intersect(query.split("\\s+|,|;|\\(|\\)"))
+    supportedPlugins.intersect(query.split("\\s+|,|;|\\(|\\)|`"))
   }
 
   /**
