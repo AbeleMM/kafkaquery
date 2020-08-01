@@ -5,7 +5,6 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.descriptors.{Json, Kafka, Rowtime, Schema}
-import org.apache.flink.table.sources.wmstrategies.BoundedOutOfOrderTimestamps
 import org.apache.flink.types.Row
 import org.codefeedr.kafkatime.transforms.SchemaConverter.getNestedSchema
 import org.codefeedr.util.schema_exposure.ZookeeperSchemaExposer
@@ -132,7 +131,7 @@ trait Register {
           .rowtime(
             new Rowtime()
               .timestampsFromField(tableInfo._1)
-              .watermarksFromStrategy(new BoundedOutOfOrderTimestamps(20)))
+              .watermarksPeriodicBounded(20))
       } else {
         generatedSchema.field(tableInfo._1, tableInfo._2)
       }
