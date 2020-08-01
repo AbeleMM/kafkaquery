@@ -39,10 +39,10 @@ class JsonToAvroSchemaTest extends AnyFunSuite with TableDrivenPropertyChecks {
           |""".stripMargin,
         """
           |{
-          |    "title":"noted-notes 0.1.4",
-          |    "link":"Noted is a cli note taking and todo app.",
-          |    "description":"https://pypi.org/project/noted-notes/0.1.4/",
-          |    "pubDate":"2020-06-14T19:42:46.000Z"
+          |    "title":"test-title",
+          |    "link":"https://example.com/",
+          |    "description":"test description",
+          |    "pubDate":"2020-06-14T19:42:10.000Z"
           |}
           |""".stripMargin
       ),
