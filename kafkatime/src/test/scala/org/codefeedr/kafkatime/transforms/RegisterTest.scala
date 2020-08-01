@@ -188,7 +188,7 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
 
   test("tumbleWindowForPyPi") {
     val res = runQuery("select count(*) from pypi_releases_min group by TUMBLE(pubDate_, interval '1' second)", 5000)
-    assert(res.asScala.map(_.getField(0).asInstanceOf[Long]).sorted == List(1, 1, 2))
+    assert(res.asScala.map(_.getField(0).asInstanceOf[Long]).sorted == List(1, 1, 1, 2))
   }
 
   test("SelectHopForPyPi") {
