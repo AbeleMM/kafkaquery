@@ -5,7 +5,8 @@ import java.nio.ByteBuffer
 import com.sksamuel.avro4s._
 import org.apache.avro.Schema
 import org.apache.avro.io.FastReaderBuilder.RecordReader.Stage
-import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.types.DataType
 import org.codefeedr.kafkatime.transforms.SchemaConverter.getNestedSchema
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
@@ -21,11 +22,6 @@ class SchemaConverterTest extends AnyFunSuite with TableDrivenPropertyChecks {
   case class AllSupportedTypes(someString: String, someFloat: Float, someDouble: Double, someInt: Int,
                                someBoolean: Boolean, someLong: Long, someOptional: Option[String], someByte: ByteBuffer,
                                someMap: Map[String, Int], someArray: Array[Int], someList: List[Long], someNested: Nested,
-                               someStringList: List[String], someBooleanList: List[Boolean], someDoubleList: List[Double],
-                               someByteList: List[ByteBuffer], someFloatList: List[Float], nestedStringList: List[List[String]],
-                               nestedBooleanList: List[List[Boolean]], nestedFloatList: List[List[Float]],
-                               nestedIntegerList: List[List[Int]], nestedByteList: List[List[ByteBuffer]],
-                               nestedDoubleList: List[List[Double]], nestedLongList: List[List[Long]],
                                someNestedList: List[Nested], someNull: Null)
 
   def getSchema: Schema = {
@@ -52,45 +48,29 @@ class SchemaConverterTest extends AnyFunSuite with TableDrivenPropertyChecks {
   }
   val schema: Schema = getSchema
 
-  val testData: TableFor2[TypeInformation[_], String] =
+  val testData: TableFor2[DataType, String] =
     Table(
       ("expectedType", "FieldName"),
-      (Types.STRING, "someString"),
-      (Types.FLOAT, "someFloat"),
-      (Types.DOUBLE, "someDouble"),
-      (Types.INT, "someInt"),
-      (Types.BOOLEAN, "someBoolean"),
-      (Types.LONG, "someLong"),
-      (Types.STRING, "someOptional"),
-      (Types.BYTE, "someByte"),
-      (Types.MAP(Types.STRING, Types.INT), "someMap"),
-      (Types.PRIMITIVE_ARRAY(Types.INT), "someArray"),
-      (Types.PRIMITIVE_ARRAY(Types.LONG), "someList"),
-      (Types.ROW_NAMED(Array[String] {
-        "someValue"
-      }, Types.INT), "someNested"),
-      (Types.LIST(Types.STRING), "someStringList"),
-      (Types.PRIMITIVE_ARRAY(Types.BOOLEAN), "someBooleanList"),
-      (Types.PRIMITIVE_ARRAY(Types.DOUBLE), "someDoubleList"),
-      (Types.PRIMITIVE_ARRAY(Types.BYTE), "someByteList"),
-      (Types.PRIMITIVE_ARRAY(Types.FLOAT), "someFloatList"),
-      (Types.LIST(Types.LIST(Types.STRING)), "nestedStringList"),
-      (Types.LIST(Types.LIST(Types.INT)), "nestedIntegerList"),
-      (Types.LIST(Types.LIST(Types.FLOAT)), "nestedFloatList"),
-      (Types.LIST(Types.LIST(Types.DOUBLE)), "nestedDoubleList"),
-      (Types.LIST(Types.LIST(Types.BOOLEAN)), "nestedBooleanList"),
-      (Types.LIST(Types.LIST(Types.BYTE)), "nestedByteList"),
-      (Types.LIST(Types.LIST(Types.LONG)), "nestedLongList"),
-      (Types.OBJECT_ARRAY(Types.ROW_NAMED(Array[String] {
-        "someValue"
-      }, Types.INT)), "someNestedList"),
-      (Types.GENERIC(classOf[Null]), "someNull")
+      (DataTypes.STRING(), "someString"),
+      (DataTypes.FLOAT(), "someFloat"),
+      (DataTypes.DOUBLE(), "someDouble"),
+      (DataTypes.INT(), "someInt"),
+      (DataTypes.BOOLEAN(), "someBoolean"),
+      (DataTypes.BIGINT(), "someLong"),
+      (DataTypes.STRING(), "someOptional"),
+      (DataTypes.BYTES(), "someByte"),
+      (DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()), "someMap"),
+      (DataTypes.ARRAY(DataTypes.INT()), "someArray"),
+      (DataTypes.ARRAY(DataTypes.BIGINT()), "someList"),
+      (DataTypes.ROW(DataTypes.FIELD("someValue", DataTypes.INT())), "someNested"),
+      (DataTypes.ARRAY(DataTypes.ROW(DataTypes.FIELD("someValue", DataTypes.INT()))), "someNestedList"),
+      (DataTypes.NULL(), "someNull")
     )
 
   /**
    * Parameterized good weather tests for all supported types.
    */
-  forAll(testData) { (t: TypeInformation[_], name: String) =>
+  forAll(testData) { (t: DataType, name: String) =>
     assertResult((name, t)) {
       getNestedSchema(name, schema.getField(name).schema())
     }

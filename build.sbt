@@ -57,7 +57,7 @@ lazy val utilSchemaExposure = (project in file("codefeedr-util/schema-exposure")
 
 lazy val dependencies =
   new {
-    val flinkVersion       = "1.9.3"
+    val flinkVersion       = "1.11.1"
     val log4jVersion       = "2.11.0"
     val log4jScalaVersion  = "11.0"
 
@@ -87,7 +87,7 @@ lazy val dependencies =
     val avro4s             = "com.sksamuel.avro4s"       %% "avro4s-core"                    % "3.1.0"
 
     val flinkTableBridge   = "org.apache.flink"          %% "flink-table-api-scala-bridge"   % flinkVersion      % Provided
-    val flinkTablePlanner  = "org.apache.flink"          %% "flink-table-planner"            % flinkVersion      % Provided
+    val flinkTablePlanner  = "org.apache.flink"          %% "flink-table-planner-blink"      % flinkVersion      % Provided
     val flinkJson          = "org.apache.flink"           % "flink-json"                     % flinkVersion
 
     val flinkTestUtils     = "org.apache.flink"          %% "flink-test-utils"               % flinkVersion      % Test classifier "tests"

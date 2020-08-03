@@ -3,7 +3,8 @@ package org.codefeedr.kafkatime.transforms
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{DataTypes, EnvironmentSettings}
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.descriptors.{Json, Kafka, Rowtime, Schema}
 import org.apache.flink.types.Row
 import org.codefeedr.kafkatime.transforms.SchemaConverter.getNestedSchema
@@ -21,7 +22,7 @@ trait Register {
     * @param zookeeperAddress address of Zookeeper specified as an environment variable. (Default address: 'localhost:2181')
     * @param kafkaAddress     address of Kafka specified as an environment variable. (Default address: 'localhost:9092')
     * @param kafka            a Kafka object which stores the start time. ('StartFromEarliest' or 'StartFromLatest')
-    * @return tuple with the datastream of rows and the streamExecutionEnvironment
+    * @return tuple with the DataStream of rows and the streamExecutionEnvironment
     */
   def registerAndApply(
       query: String,
@@ -38,12 +39,19 @@ trait Register {
 
     println("Requested: " + requestedTopics)
 
+    val fsSettings = EnvironmentSettings
+      .newInstance()
+      .useBlinkPlanner()
+      .inStreamingMode()
+      .build()
+
     val fsEnv =
       StreamExecutionEnvironment.getExecutionEnvironment
 
     fsEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    fsEnv.getConfig.enableObjectReuse()
 
-    val fsTableEnv = StreamTableEnvironment.create(fsEnv)
+    val fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSettings)
 
     for (topicName <- requestedTopics) {
       val result = zkSchemaExposer.get(topicName)
@@ -86,13 +94,12 @@ trait Register {
       .withFormat(
         new Json()
           .failOnMissingField(false)
-          .deriveSchema()
       )
       .withSchema(
         schema
       )
       .inAppendMode()
-      .registerTableSource(topicName)
+      .createTemporaryTable(topicName)
   }
 
   /**
@@ -127,7 +134,7 @@ trait Register {
             field.getProp("rowtime"))) {
         rowtimeFound = true
         generatedSchema
-          .field(tableInfo._1 + "_", Types.SQL_TIMESTAMP)
+          .field(tableInfo._1 + "_", DataTypes.TIMESTAMP(3))
           .rowtime(
             new Rowtime()
               .timestampsFromField(tableInfo._1)
@@ -139,7 +146,7 @@ trait Register {
 
     if (rowtimeEnabled && !rowtimeFound) {
       generatedSchema
-        .field("kafka_time", Types.SQL_TIMESTAMP)
+        .field("kafka_time", DataTypes.TIMESTAMP(3))
         .rowtime(
           new Rowtime().timestampsFromSource().watermarksPeriodicBounded(20))
     }
