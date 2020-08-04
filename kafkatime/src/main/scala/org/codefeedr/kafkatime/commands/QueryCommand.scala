@@ -13,7 +13,6 @@ import org.apache.flink.streaming.connectors.kafka.{
   FlinkKafkaProducer,
   KafkaSerializationSchema
 }
-import org.apache.flink.table.descriptors.Kafka
 import org.apache.flink.types.Row
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.codefeedr.kafkatime.parsers.Configurations.Config
@@ -29,20 +28,18 @@ class QueryCommand extends Register {
     * @param config configurations of the specified query command.
     */
   def apply(config: Config): Unit = {
-
-    val kafka: Kafka =
-      getKafkaWithState(config.queryConfig.checkLatest, new Kafka())
     val tuple =
       registerAndApply(config.queryConfig.query,
                        config.zookeeperAddress,
                        config.kafkaAddress,
-                       kafka)
+                       config.queryConfig.checkLatest)
 
     if (config.queryConfig.timeout > 0) {
       tuple._1
         .keyBy(new NullByteKeySelector[Row]())
         .process(new TimeOutFunction(config.queryConfig.timeout * 1000))
     }
+
     if (config.queryConfig.outTopic.nonEmpty) {
       queryToKafkaTopic(config.queryConfig.outTopic,
                         tuple._1,
@@ -52,24 +49,8 @@ class QueryCommand extends Register {
     } else {
       queryToConsole(tuple._1)
     }
-    tuple._2.execute()
-  }
 
-  /**
-    * Determine which state to place in the given Kafka object.
-    *
-    * @param checkLatest check if the query output should be printed from latest
-    * @param kafka       a Kafka object which stores the start time. ('StartFromEarliest' or 'StartFromLatest')
-    * @return a Kafka object which has been provided with the given state.
-    */
-  def getKafkaWithState(checkLatest: Boolean, kafka: Kafka): Kafka = {
-    if (checkLatest) {
-      kafka
-        .startFromLatest()
-    } else {
-      kafka
-        .startFromEarliest()
-    }
+    tuple._2.execute()
   }
 
   /**

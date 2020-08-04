@@ -1,13 +1,11 @@
 package org.codefeedr.kafkatime.transforms
 
-import java.sql.Timestamp
-import java.util
+import java.time.LocalDateTime
 
 import net.manub.embeddedkafka._
 import org.apache.avro.Schema
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.descriptors.Kafka
 import org.apache.flink.types.Row
 import org.codefeedr.kafkatime.commands.QueryCommand
 import org.codefeedr.util.schema_exposure.ZookeeperSchemaExposer
@@ -143,8 +141,7 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
       zke.put(npmTableSchema, npmTableName)
       zke.put(testTableSchema, testTableName)
 
-      val stream = new QueryCommand().registerAndApply(query, s"localhost:${config.zooKeeperPort}", s"localhost:${config.kafkaPort}", new Kafka()
-        .version("universal").startFromEarliest())
+      val stream = new QueryCommand().registerAndApply(query, s"localhost:${config.zooKeeperPort}", s"localhost:${config.kafkaPort}", startLatest = false)
       stream._1.addSink(new CollectRowSink)
 
       if (delay == 0) {
@@ -187,20 +184,20 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
   }
 
   test("tumbleWindowForPyPi") {
-    val res = runQuery("select count(*) from pypi_releases_min group by TUMBLE(pubDate_, interval '1' second)", 5000)
+    val res = runQuery("select count(*) from pypi_releases_min group by TUMBLE(pubDate, interval '1' second)", 5000)
     assert(res.asScala.map(_.getField(0).asInstanceOf[Long]).sorted == List(1, 1, 1, 2))
   }
 
   test("SelectHopForPyPi") {
-    val res = runQuery("select count(*) from pypi_releases_min group by HOP(pubDate_, interval '2' second, interval '1' second)", 5000)
+    val res = runQuery("select count(*) from pypi_releases_min group by HOP(pubDate, interval '2' second, interval '1' second)", 5000)
     assert(res.asScala.map(_.getField(0).asInstanceOf[Long]).sorted == List(1, 2))
   }
 
   test("selectTestPyPiGroup") {
-    val res: java.util.ArrayList[Row] = runQuery("select HOP_START(pubDate_, interval '2' second, interval '1' second), count(*) " +
-      "from pypi_releases_min GROUP BY HOP(pubDate_, interval '2' second, interval '1' second) HAVING count(*) > 1", 5000)
+    val res: java.util.ArrayList[Row] = runQuery("select HOP_START(pubDate, interval '2' second, interval '1' second), count(*) " +
+      "from pypi_releases_min GROUP BY HOP(pubDate, interval '2' second, interval '1' second) HAVING count(*) > 1", 5000)
     assert(res.size == 1)
-    assert(res.asScala.map(_.getField(0).asInstanceOf[Timestamp]).toSet == Set(Timestamp.valueOf("2020-05-19 17:48:00.0")))
+    assert(res.asScala.map(_.getField(0).asInstanceOf[LocalDateTime].toString).toSet == Set("2020-05-19T17:48"))
     assert(res.asScala.map(_.getField(1).asInstanceOf[Long]) == List(2))
   }
 
@@ -221,7 +218,7 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
   }
 
   test("selectTestPyPiSubQueryInMultiRow") {
-    val res = runQuery("select title FROM pypi_releases_min where pubDate_ IN (SELECT retrieveDate_ FROM npm_releases_min WHERE retrieveDate_" +
+    val res = runQuery("select title FROM pypi_releases_min where pubDate IN (SELECT retrieveDate FROM npm_releases_min WHERE retrieveDate" +
       " BETWEEN '2020-05-19 17:48:00.0' AND '2020-05-19 17:48:05.0')", 5000)
     assert(res.size == 6)
   }
@@ -232,7 +229,7 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
   }
 
   test("extractTopicsSimple") {
-    val res = new QueryCommand().extractTopics("select count(*) from cargo group by TUMBLE(pubDate_, interval '10' second)",
+    val res = new QueryCommand().extractTopics("select count(*) from cargo group by TUMBLE(pubDate, interval '10' second)",
       List("pypi_releases_min", "cargo"))
     assert(res.toSet.equals(Set("cargo")))
   }
@@ -276,7 +273,7 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
 }
 
 object CollectRowSink {
-  val result = new util.ArrayList[Row]
+  val result = new java.util.ArrayList[Row]
 }
 
 class CollectRowSink extends SinkFunction[Row] {

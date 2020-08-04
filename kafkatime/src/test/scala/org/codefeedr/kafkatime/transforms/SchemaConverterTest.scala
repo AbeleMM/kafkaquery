@@ -5,8 +5,6 @@ import java.nio.ByteBuffer
 import com.sksamuel.avro4s._
 import org.apache.avro.Schema
 import org.apache.avro.io.FastReaderBuilder.RecordReader.Stage
-import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.types.DataType
 import org.codefeedr.kafkatime.transforms.SchemaConverter.getNestedSchema
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
@@ -48,31 +46,32 @@ class SchemaConverterTest extends AnyFunSuite with TableDrivenPropertyChecks {
   }
   val schema: Schema = getSchema
 
-  val testData: TableFor2[DataType, String] =
+  val testData: TableFor2[String, String] =
     Table(
       ("expectedType", "FieldName"),
-      (DataTypes.STRING(), "someString"),
-      (DataTypes.FLOAT(), "someFloat"),
-      (DataTypes.DOUBLE(), "someDouble"),
-      (DataTypes.INT(), "someInt"),
-      (DataTypes.BOOLEAN(), "someBoolean"),
-      (DataTypes.BIGINT(), "someLong"),
-      (DataTypes.STRING(), "someOptional"),
-      (DataTypes.BYTES(), "someByte"),
-      (DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()), "someMap"),
-      (DataTypes.ARRAY(DataTypes.INT()), "someArray"),
-      (DataTypes.ARRAY(DataTypes.BIGINT()), "someList"),
-      (DataTypes.ROW(DataTypes.FIELD("someValue", DataTypes.INT())), "someNested"),
-      (DataTypes.ARRAY(DataTypes.ROW(DataTypes.FIELD("someValue", DataTypes.INT()))), "someNestedList"),
-      (DataTypes.NULL(), "someNull")
+      ("STRING", "someString"),
+      ("FLOAT", "someFloat"),
+      ("DOUBLE", "someDouble"),
+      ("INTEGER", "someInt"),
+      ("BOOLEAN", "someBoolean"),
+      ("BIGINT", "someLong"),
+      ("STRING", "someOptional"),
+      ("BYTES", "someByte"),
+      ("MAP<STRING, INTEGER>", "someMap"),
+      ("ARRAY<INTEGER>", "someArray"),
+      ("ARRAY<BIGINT>", "someList"),
+      ("ROW<someValue INTEGER>", "someNested"),
+      ("ARRAY<ROW<someValue INTEGER>>", "someNestedList"),
+      ("NULL", "someNull")
     )
 
   /**
    * Parameterized good weather tests for all supported types.
    */
-  forAll(testData) { (t: DataType, name: String) =>
+  forAll(testData) { (t: String, name: String) =>
     assertResult((name, t)) {
-      getNestedSchema(name, schema.getField(name).schema())
+      val res = getNestedSchema(name, schema.getField(name).schema())
+      (res._1, res._2.toString)
     }
   }
   /**
