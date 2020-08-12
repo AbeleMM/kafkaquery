@@ -2,18 +2,15 @@ package org.codefeedr.kafkatime.transforms
 
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.descriptors.{Json, Kafka, Rowtime, Schema}
+import org.apache.flink.table.api.EnvironmentSettings
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.types.Row
-import SchemaConverter.getNestedSchema
+import org.codefeedr.kafkatime.transforms.SchemaConverter.getNestedSchema
 import org.codefeedr.util.schema_exposure.ZookeeperSchemaExposer
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 
 trait Register {
-
-  var rowtimeCounter = 0
 
   /**
     * Register and apply the tables of the given query
@@ -22,88 +19,62 @@ trait Register {
     * @param query            the input query
     * @param zookeeperAddress address of Zookeeper specified as an environment variable. (Default address: 'localhost:2181')
     * @param kafkaAddress     address of Kafka specified as an environment variable. (Default address: 'localhost:9092')
-    * @param kafka            a Kafka object which stores the start time. ('StartFromEarliest' or 'StartFromLatest')
-    * @return tuple with the datastream of rows and the streamExecutionEnvironment
+    * @param startLatest      flag to specify starting Kafka from-latest if true (from-earliest used if false)
+    * @return tuple with the DataStream of rows and the streamExecutionEnvironment
     */
   def registerAndApply(
       query: String,
       zookeeperAddress: String,
       kafkaAddress: String,
-      kafka: Kafka): (DataStream[Row], StreamExecutionEnvironment) = {
+      startLatest: Boolean): (DataStream[Row], StreamExecutionEnvironment) = {
 
-    val zkSchemaExposer = new ZookeeperSchemaExposer(zookeeperAddress)
+    val zk = new ZookeeperSchemaExposer(zookeeperAddress)
 
-    val supportedFormats = zkSchemaExposer.getAllChildren
+    val supportedFormats = zk.getAllChildren
     println("Supported Plugins: " + supportedFormats)
 
     val requestedTopics = extractTopics(query, supportedFormats)
 
     println("Requested: " + requestedTopics)
-    val executionEnvironment =
+
+    val fsSettings = EnvironmentSettings
+      .newInstance()
+      .useBlinkPlanner()
+      .inStreamingMode()
+      .build()
+
+    val fsEnv =
       StreamExecutionEnvironment.getExecutionEnvironment
 
-    executionEnvironment.setStreamTimeCharacteristic(
-      TimeCharacteristic.EventTime)
+    fsEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    fsEnv.getConfig.enableObjectReuse()
 
-    val tableEnvironment = StreamTableEnvironment.create(executionEnvironment)
-
-    rowtimeCounter = 0
-    val fieldMapper = new ListBuffer[(String, String)]
+    val fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSettings)
 
     for (topicName <- requestedTopics) {
-      val result = zkSchemaExposer.get(topicName)
+      val result = zk.get(topicName)
 
       if (result.isDefined) {
-        val generatedSchema =
-          generateFlinkTableSchema(result.get, query, fieldMapper)
+        val ddlString =
+          "CREATE TEMPORARY TABLE " + topicName + " (" +
+            generateFlinkTableSchema(result.get) +
+            ") WITH (" +
+            "'connector.type' = 'kafka', " +
+            "'connector.version' = 'universal', " +
+            "'connector.topic' = '" + topicName + "', " +
+            "'connector.properties.bootstrap.servers' = '" + kafkaAddress + "', " +
+            "'connector.startup-mode' = '" +
+            (if (startLatest) "latest-offset" else "earliest-offset") +
+            "', " +
+            "'format.type' = 'json', " +
+            "'format.fail-on-missing-field' = 'false'" +
+            ")"
 
-        connectEnvironmentToTopic(tableEnvironment,
-                                  topicName,
-                                  generatedSchema,
-                                  zookeeperAddress,
-                                  kafkaAddress,
-                                  kafka)
+        fsTableEnv.executeSql(ddlString)
       }
     }
 
-    val queryMapped = mapFields(query, fieldMapper.toList)
-
-    (tableEnvironment.sqlQuery(queryMapped).toRetractStream[Row].map(_._2),
-     executionEnvironment)
-  }
-
-  /**
-    * Connects the table Environment to a Kafka topic. The TableEnvironment will register a table for the topic.
-    *
-    * @param tableEnv         the TableEnvironment to connect
-    * @param topicName        the Kafka topic name
-    * @param schema           the Schema of the data within the topic
-    * @param zookeeperAddress address of Zookeeper specified as an environment variable. (Default address: 'localhost:2181')
-    * @param kafkaAddress     address of Kafka specified as an environment variable. (Default address: 'localhost:9092')
-    * @param kafka            a Kafka object which stores the start time. ('StartFromEarliest' or 'StartFromLatest')
-    */
-  def connectEnvironmentToTopic(tableEnv: StreamTableEnvironment,
-                                topicName: String,
-                                schema: Schema,
-                                zookeeperAddress: String,
-                                kafkaAddress: String,
-                                kafka: Kafka): Unit = {
-    tableEnv
-      .connect(
-        kafka
-          .topic(topicName)
-          .property("zookeeper.connect", zookeeperAddress)
-          .property("bootstrap.servers", kafkaAddress)
-      )
-      .withFormat(
-        new Json()
-          .deriveSchema()
-      )
-      .withSchema(
-        schema
-      )
-      .inAppendMode()
-      .registerTableSource(topicName)
+    (fsTableEnv.sqlQuery(query).toRetractStream[Row].map(_._2), fsEnv)
   }
 
   /**
@@ -122,59 +93,44 @@ trait Register {
     * Generate a Flink table schema from an Avro Schema.
     *
     * @param avroSchema  the Avro Schema
-    * @param query       the input query
-    * @param fieldMapper empty ListBuffer of string pairs containing the plugin's rowtime name
-    *                    and a generated rowtime name
-    * @return the Flink table descriptor Schema
+    * @return a java.lang.StringBuilder with the DDL description of the schema
     */
-  def generateFlinkTableSchema(
-      avroSchema: org.apache.avro.Schema,
-      query: String,
-      fieldMapper: ListBuffer[(String, String)]): Schema = {
-    var generatedSchema = new Schema()
+  private def generateFlinkTableSchema(
+      avroSchema: org.apache.avro.Schema): java.lang.StringBuilder = {
+    val res = new java.lang.StringBuilder()
+
+    val rowtimeEnabled = !"false".equals(avroSchema.getProp("rowtime"))
+
+    var rowtimeFound = false
+
     for (field <- avroSchema.getFields.asScala) {
-      val tableInfo = getNestedSchema(field.name(), field.schema())
-      if (field.schema().getObjectProp("isRowtime").asInstanceOf[Boolean]) {
-        val rowtime = "rowtime" + rowtimeCounter
-        do {
-          rowtimeCounter += 1
-        } while (query.contains(rowtime))
-        generatedSchema
-          .field(rowtime,
-                 org.apache.flink.api.common.typeinfo.Types.SQL_TIMESTAMP)
-          .rowtime(
-            new Rowtime()
-              .timestampsFromField(tableInfo._1)
-              .watermarksPeriodicBounded(2000))
-        fieldMapper.+=:(tableInfo._1, rowtime)
+      val fieldInfo = getNestedSchema(field.name(), field.schema())
+
+      if (rowtimeEnabled && !rowtimeFound && "true".equals(
+            field.getProp("rowtime"))) {
+        rowtimeFound = true
+
+        res.append(fieldInfo._1)
+        res.append(" TIMESTAMP(3), WATERMARK FOR ")
+        res.append(fieldInfo._1)
+        res.append(" AS ")
+        res.append(fieldInfo._1)
+        res.append(" - INTERVAL '0.001' SECOND, ")
       } else {
-        generatedSchema = generatedSchema.field(tableInfo._1, tableInfo._2)
+        res.append(fieldInfo._1)
+        res.append(" ")
+        res.append(fieldInfo._2)
+        res.append(", ")
       }
     }
-    generatedSchema
-  }
 
-  /**
-    * The plugin rowtime parameter from the query is replaced by a generated
-    * rowtime attribute recognised by the TableExecutionEnvironment.
-    *
-    * @param query       sql query including plugins fields
-    * @param fieldMapper a list of string pairs containing the plugin's rowtime name
-    *                    and the name generated by generateFlinkTableSchema
-    * @return
-    */
-  def mapFields(query: String, fieldMapper: List[(String, String)]): String = {
-    var res = query
-    fieldMapper.foreach(field => {
-      val reg = ("(\\W?)(" + field._1 + ")(\\W?)").r
-      if (("(\\W?)(" + field._2 + ")(\\W?)").r.findFirstIn(query).isDefined)
-        throw new IllegalArgumentException(
-          "\"" + query + "\" already contains a the map value of" + field._1 + ".")
-      reg
-        .findAllMatchIn(res)
-        .foreach(ins =>
-          res = reg.replaceFirstIn(res, ins.group(1) + field._2 + ins.group(3)))
-    })
+    if (rowtimeEnabled && !rowtimeFound) {
+      res.append("kafka_time AS PROCTIME(), ")
+    }
+
+    if (res.length() - 2 == res.lastIndexOf(", "))
+      res.delete(res.length() - 2, res.length())
+
     res
   }
 

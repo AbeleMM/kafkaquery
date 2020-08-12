@@ -26,7 +26,7 @@ class ParserTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
     zooKeeperPort = 0
   )
 
-  val format =
+  val format: String =
     """
       |{
       |  "type" : "record",
@@ -111,7 +111,7 @@ class ParserTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
       val fileName = "schema"
       val zkAddress = s"localhost:${config.zooKeeperPort}"
       val avroSchema = """{"type":"record","name":"Person","namespace":"org.codefeedr.plugins.repl.parsers.Parser.updateSchema","fields":[{"name":"name","type":"string"},{"name":"age","type":"int"},{"name":"city","type":"string"}]}"""
-      new PrintWriter(fileName) {write(avroSchema); close}
+      new PrintWriter(fileName) {write(avroSchema); close()}
 
       parser.parse(("--schema "+ subjectName +"=" + fileName+ " --zookeeper "+zkAddress).split(" "))
 

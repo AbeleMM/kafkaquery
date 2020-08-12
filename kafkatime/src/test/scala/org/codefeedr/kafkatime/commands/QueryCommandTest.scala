@@ -9,7 +9,6 @@ import org.apache.flink.api.common.serialization.DeserializationSchema
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer
-import org.apache.flink.table.descriptors.Kafka
 import org.apache.flink.types.Row
 import org.codefeedr.kafkatime.parsers.Configurations.{Config, QueryConfig}
 import org.codefeedr.kafkatime.transforms.CollectRowSink
@@ -41,10 +40,8 @@ class QueryCommandTest extends AnyFunSuite with EmbeddedKafka with MockitoSugar 
     env.setParallelism(1)
     val ds = env.fromCollection(pypiMessages)
     queryCommandMock = mock[QueryCommand](new CallsRealMethods())
-    doReturn(null).when(queryCommandMock)
-      .getKafkaWithState(any[Boolean], any[Kafka])
     doReturn((ds, env)).when(queryCommandMock)
-      .registerAndApply(any[String], any[String], any[String], any[Kafka])
+      .registerAndApply(any[String], any[String], any[String], any[Boolean])
   }
 
   test("queryToConsole") {
@@ -70,7 +67,6 @@ class QueryCommandTest extends AnyFunSuite with EmbeddedKafka with MockitoSugar 
       while (buffOut.toString.isEmpty && !reg.pattern.matcher(buffOut.toString).matches) {}
       port = reg.findFirstMatchIn(buffOut.toString).get.group(1).toInt
     }
-    System.out.println(port)
     val buffIn = new BufferedReader(new InputStreamReader(new Socket("localhost", port).getInputStream))
     val socketLines = new ListBuffer[String]
     while (socketLines.size < 3) socketLines += buffIn.readLine
@@ -124,16 +120,6 @@ class QueryCommandTest extends AnyFunSuite with EmbeddedKafka with MockitoSugar 
     )
     cons.setStartFromEarliest()
     env.addSource(cons)
-  }
-
-  test("kafkaWithState") {
-    val queryCommand = new QueryCommand()
-    val kafka = new Kafka()
-      .version("universal")
-    val kafkaWithLatest = queryCommand.getKafkaWithState(checkLatest = true, kafka)
-    assert(kafkaWithLatest.equals(kafka.startFromLatest()))
-    val kafkaWithEarliest = queryCommand.getKafkaWithState(checkLatest = false, kafka)
-    assert(kafkaWithEarliest.equals(kafka.startFromEarliest()))
   }
 
 }

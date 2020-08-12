@@ -1,13 +1,11 @@
 package org.codefeedr.kafkatime.transforms
 
-import java.sql.Timestamp
-import java.util
+import java.time.LocalDateTime
 
 import net.manub.embeddedkafka._
 import org.apache.avro.Schema
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.descriptors.Kafka
 import org.apache.flink.types.Row
 import org.codefeedr.kafkatime.commands.QueryCommand
 import org.codefeedr.util.schema_exposure.ZookeeperSchemaExposer
@@ -42,10 +40,8 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
       |      },
       |      {
       |         "name":"pubDate",
-      |         "type":{
-      |            "type":"string",
-      |            "isRowtime":true
-      |         }
+      |         "type":"string",
+      |         "rowtime":"true"
       |      }
       |   ]
       |}
@@ -65,10 +61,27 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
       |      },
       |      {
       |         "name":"retrieveDate",
-      |         "type":{
-      |            "type":"string",
-      |            "isRowtime":true
-      |         }
+      |         "type":"string",
+      |         "rowtime":"true"
+      |      }
+      |   ]
+      |}
+      |""".stripMargin)
+
+  val testTableName: String = "test"
+  val testTableSchema: Schema = new Schema.Parser().parse(
+    """
+      |{
+      |   "type":"record",
+      |   "name":"Test",
+      |   "fields":[
+      |      {
+      |         "name":"field_a",
+      |         "type":"string"
+      |      },
+      |      {
+      |         "name":"field_b",
+      |         "type":"int"
       |      }
       |   ]
       |}
@@ -94,6 +107,16 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
     ""
   )
 
+  val testMessages: List[String] = List(
+    """{ "field_a": "elem1", "field_b": 1 }""",
+    """{ "field_a": "elem2", "field_b": 2 }""",
+    """{ "field_a": "elem3", "field_b": 3 }""",
+    """{ "field_a": "elem4", "field_b": 4 }""",
+    """{ "field_a": "elem5", "field_b": 5 }""",
+    """{ "field_a": "elem6", "field_b": 6 }""",
+    ""
+  )
+
   after {
     CollectRowSink.result.clear()
   }
@@ -116,15 +139,16 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
       val zke = new ZookeeperSchemaExposer(s"localhost:${config.zooKeeperPort}")
       zke.put(pypiTableSchema, pypiTableName)
       zke.put(npmTableSchema, npmTableName)
+      zke.put(testTableSchema, testTableName)
 
-      val stream = new QueryCommand().registerAndApply(query, s"localhost:${config.zooKeeperPort}", s"localhost:${config.kafkaPort}", new Kafka()
-        .version("universal").startFromEarliest())
+      val stream = new QueryCommand().registerAndApply(query, s"localhost:${config.zooKeeperPort}", s"localhost:${config.kafkaPort}", startLatest = false)
       stream._1.addSink(new CollectRowSink)
 
       if (delay == 0) {
         for (i <- 0 to 6) {
           publishStringMessageToKafka(pypiTableName, pypiMessages(i))
           publishStringMessageToKafka(npmTableName, npmMessages(i))
+          publishStringMessageToKafka(testTableName, testMessages(i))
         }
       } else {
         new Thread {
@@ -139,6 +163,7 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
               }
               publishStringMessageToKafka(pypiTableName, pypiMessages(i))
               publishStringMessageToKafka(npmTableName, npmMessages(i))
+              publishStringMessageToKafka(testTableName, testMessages(i))
             }
           }
         }.start()
@@ -156,18 +181,15 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
   test("selectOperatorForPyPi") {
     // Remove one from the size of messages as to not count empty stop message.
     assert(runQuery("SELECT * FROM pypi_releases_min").size() == pypiMessages.size - 1)
-
   }
 
   test("tumbleWindowForPyPi") {
     val res = runQuery("select count(*) from pypi_releases_min group by TUMBLE(pubDate, interval '1' second)", 5000)
-    assert(res.size() == 3)
-    assert(res.asScala.map(_.getField(0).asInstanceOf[Long]).sorted == List(1, 1, 2))
+    assert(res.asScala.map(_.getField(0).asInstanceOf[Long]).sorted == List(1, 1, 1, 2))
   }
 
   test("SelectHopForPyPi") {
     val res = runQuery("select count(*) from pypi_releases_min group by HOP(pubDate, interval '2' second, interval '1' second)", 5000)
-    assert(res.size() == 2)
     assert(res.asScala.map(_.getField(0).asInstanceOf[Long]).sorted == List(1, 2))
   }
 
@@ -175,7 +197,7 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
     val res: java.util.ArrayList[Row] = runQuery("select HOP_START(pubDate, interval '2' second, interval '1' second), count(*) " +
       "from pypi_releases_min GROUP BY HOP(pubDate, interval '2' second, interval '1' second) HAVING count(*) > 1", 5000)
     assert(res.size == 1)
-    assert(res.asScala.map(_.getField(0).asInstanceOf[Timestamp]).toSet == Set(Timestamp.valueOf("2020-05-19 17:48:00.0")))
+    assert(res.asScala.map(_.getField(0).asInstanceOf[LocalDateTime].toString).toSet == Set("2020-05-19T17:48"))
     assert(res.asScala.map(_.getField(1).asInstanceOf[Long]) == List(2))
   }
 
@@ -198,6 +220,11 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
   test("selectTestPyPiSubQueryInMultiRow") {
     val res = runQuery("select title FROM pypi_releases_min where pubDate IN (SELECT retrieveDate FROM npm_releases_min WHERE retrieveDate" +
       " BETWEEN '2020-05-19 17:48:00.0' AND '2020-05-19 17:48:05.0')", 5000)
+    assert(res.size == 6)
+  }
+
+  test("KafkaRowtimeTest") {
+    val res = runQuery("SELECT field_a, kafka_time FROM test")
     assert(res.size == 6)
   }
 
@@ -243,38 +270,10 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
     assert(res.toSet.equals(Set("pypi_release")))
   }
 
-  test("mapFieldsSimpleQuery") {
-    val res: String = new QueryCommand().mapFields("select pubDate from pypi", List(("pubDate", "rowtime0")))
-    assert(res === "select rowtime0 from pypi")
-  }
-
-  test("mapFieldsMultiple") {
-    val res: String = new QueryCommand().mapFields("select pubDate, pubDate from pypi", List(("pubDate", "rowtime0")))
-    assert(res === "select rowtime0, rowtime0 from pypi")
-  }
-
-  test("mapFieldsMultipleMappings") {
-    val res: String = new QueryCommand().mapFields("select pubDate from pypi where any_date='today'", List(("pubDate", "rowtime0"), ("any_date", "rowtime1")))
-    assert(res === "select rowtime0 from pypi where rowtime1='today'")
-  }
-
-  test("mapFieldsEmbeddedField") {
-    val res: String = new QueryCommand().mapFields("select count(*) from pypi_releases_min group by HOP(any_date, interval '1' day, interval '1' day)",
-      List(("any_date", "rowtime2")))
-    assert(res === "select count(*) from pypi_releases_min group by HOP(rowtime2, interval '1' day, interval '1' day)")
-  }
-
-  test("mapFieldsThrowException") {
-    assertThrows[IllegalArgumentException] {
-      new QueryCommand().mapFields("select count(*)from pypi_releases_min group by HOP(rowtime0, interval '1' rowtime0, interval '1' day)",
-        List(("pubDate", "rowtime0")))
-    }
-  }
-
 }
 
 object CollectRowSink {
-  val result = new util.ArrayList[Row]
+  val result = new java.util.ArrayList[Row]
 }
 
 class CollectRowSink extends SinkFunction[Row] {

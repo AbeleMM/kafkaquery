@@ -1,4 +1,4 @@
-lazy val scala212 = "2.12.11"
+lazy val scala212 = "2.12.12"
 lazy val supportedScalaVersions = List(scala212)
 
 ThisBuild / scalaVersion := scala212
@@ -26,7 +26,8 @@ lazy val kafkatime = (project in file("kafkatime"))
     libraryDependencies ++= commonDependencies ++ Seq(
       dependencies.kafkaClient,
       dependencies.flinkKafka,
-      dependencies.flinkTable,
+      dependencies.flinkClients,
+      dependencies.flinkTableBridge,
       dependencies.flinkTablePlanner,
       dependencies.flinkJson,
       dependencies.avro4s,
@@ -56,7 +57,7 @@ lazy val utilSchemaExposure = (project in file("codefeedr-util/schema-exposure")
 
 lazy val dependencies =
   new {
-    val flinkVersion       = "1.9.1"
+    val flinkVersion       = "1.11.1"
     val log4jVersion       = "2.11.0"
     val log4jScalaVersion  = "11.0"
 
@@ -68,6 +69,7 @@ lazy val dependencies =
     val flink              = "org.apache.flink"          %% "flink-scala"                    % flinkVersion      % Provided
     val flinkStreaming     = "org.apache.flink"          %% "flink-streaming-scala"          % flinkVersion      % Provided
     val flinkKafka         = "org.apache.flink"          %% "flink-connector-kafka"          % flinkVersion
+    val flinkClients       = "org.apache.flink"          %% "flink-clients"                  % flinkVersion
 
     val redis              = "net.debasishg"             %% "redisclient"                    % "3.6"
     val kafkaClient        = "org.apache.kafka"           % "kafka-clients"                  % "2.4.0"
@@ -84,13 +86,13 @@ lazy val dependencies =
     val avro               = "org.apache.avro"            % "avro"                           % "1.8.2"
     val avro4s             = "com.sksamuel.avro4s"       %% "avro4s-core"                    % "3.1.0"
 
-    val flinkTable         = "org.apache.flink"           % "flink-table"                    % flinkVersion      % Provided pomOnly()
-    val flinkTablePlanner  = "org.apache.flink"          %% "flink-table-planner"            % flinkVersion
+    val flinkTableBridge   = "org.apache.flink"          %% "flink-table-api-scala-bridge"   % flinkVersion      % Provided
+    val flinkTablePlanner  = "org.apache.flink"          %% "flink-table-planner-blink"      % flinkVersion      % Provided
     val flinkJson          = "org.apache.flink"           % "flink-json"                     % flinkVersion
 
-    val flinkTestUtils     = "org.apache.flink"          %% "flink-test-utils"               % flinkVersion      % "test->test"
-    val flinkRuntime       = "org.apache.flink"          %% "flink-runtime"                  % flinkVersion      % "test->test"
-    val flinkStreamingJava = "org.apache.flink"          %% "flink-streaming-java"           % flinkVersion      % "test->test"
+    val flinkTestUtils     = "org.apache.flink"          %% "flink-test-utils"               % flinkVersion      % Test classifier "tests"
+    val flinkRuntime       = "org.apache.flink"          %% "flink-runtime"                  % flinkVersion      % Test classifier "tests"
+    val flinkStreamingJava = "org.apache.flink"          %% "flink-streaming-java"           % flinkVersion      % Test classifier "tests"
 
     val scopt              = "com.github.scopt"          %% "scopt"                          % "3.7.1"
   }
@@ -141,7 +143,7 @@ lazy val assemblySettings = Seq(
   assemblyJarName in assembly := name.value + ".jar",
   test in assembly := {},
   assemblyMergeStrategy in assembly := {
-    case PathList("META-INF", xs @ _*)  => MergeStrategy.discard
+    case PathList("META-INF", _*)  => MergeStrategy.discard
     case "log4j.properties"             => MergeStrategy.first
     case x =>
       val oldStrategy = (assemblyMergeStrategy in assembly).value
