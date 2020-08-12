@@ -14,7 +14,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.JavaConverters._
 
-class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
+class RegisterTest extends AnyFunSuite with EmbeddedKafka {
 
   var sink: CollectRowSink = _
 
@@ -117,10 +117,6 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
     ""
   )
 
-  after {
-    CollectRowSink.result.clear()
-  }
-
   implicit val config: EmbeddedKafkaConfig = EmbeddedKafkaConfig(
     kafkaPort = 0,
     zooKeeperPort = 0
@@ -140,6 +136,8 @@ class RegisterTest extends AnyFunSuite with EmbeddedKafka with BeforeAndAfter {
       zke.put(pypiTableSchema, pypiTableName)
       zke.put(npmTableSchema, npmTableName)
       zke.put(testTableSchema, testTableName)
+
+      CollectRowSink.result.clear()
 
       val stream = new QueryCommand().registerAndApply(query, s"localhost:${config.zooKeeperPort}", s"localhost:${config.kafkaPort}", startLatest = false)
       stream._1.addSink(new CollectRowSink)
