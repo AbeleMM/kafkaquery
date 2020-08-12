@@ -9,7 +9,6 @@ import org.apache.flink.table.api.ValidationException
 import org.apache.flink.types.Row
 import org.codefeedr.kafkaquery.commands.QueryCommand
 import org.codefeedr.kafkaquery.util.ZookeeperSchemaExposer
-import org.scalatest.BeforeAndAfter
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.JavaConverters._
