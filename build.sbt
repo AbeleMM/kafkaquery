@@ -24,6 +24,7 @@ scalacOptions ++= Seq(
 
 lazy val flinkVersion       = "1.11.1"
 lazy val log4jVersion       = "2.13.0"
+lazy val scalatestVersion   = "3.1.2"
 
 libraryDependencies ++= Seq(
   "org.apache.logging.log4j"   % "log4j-api"                      % log4jVersion,
@@ -38,8 +39,8 @@ libraryDependencies ++= Seq(
   "org.apache.kafka"           % "kafka-clients"                  % "2.4.0",
   "org.apache.zookeeper"       % "zookeeper"                      % "3.4.9",
 
-  "org.scalactic"             %% "scalactic"                      % "3.1.2"           % Test,
-  "org.scalatest"             %% "scalatest"                      % "3.1.2"           % Test,
+  "org.scalactic"             %% "scalactic"                      % scalatestVersion  % Test,
+  "org.scalatest"             %% "scalatest"                      % scalatestVersion  % Test,
   "org.mockito"               %% "mockito-scala"                  % "1.14.8"          % Test,
 
   "io.github.embeddedkafka"   %% "embedded-kafka"                 % "2.4.0"           % Test,
