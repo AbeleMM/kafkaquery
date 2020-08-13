@@ -17,11 +17,11 @@ Specify Kafka and Zookeeper addresses in your environment variables.
 
 ## Usage
 
-The following commands can be used like this: codefeedr \<command>
+The following org.codefeedr.kafkaquery.commands can be used like this: codefeedr \<command>
 
 | Command                                                           | Description                                                                                                                                                | Example                                                   |
 |-------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|
-| --help <br/> -h                                                   | Lists all available commands & options.                                                                                                                    | --help                                                    |
+| --help <br/> -h                                                   | Lists all available org.codefeedr.kafkaquery.commands & options.                                                                                                                    | --help                                                    |
 | --topics                                                          | Lists all available topics.                                                                                                                                | --topics                                                  |
 | --topic <topic_name>                                              | Displays information about data format in the specified topic.                                                                                             | --topic "pypi_releases_min"                               |
 | --schema <topic_name>=<avro_Schema>                               | Updates (or adds if not present) the schema for the specified topic.                                                                                                                | --schema "my_topic"="{\"type\":\"record\",\"name\":\"Person\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":\"int\"},{\"name\":\"city\",\"type\":\"string\"}]}"  |
